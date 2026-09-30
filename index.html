@@ -323,7 +323,7 @@ const PALETTE=['#e74c3c','#e67e22','#f1c40f','#2ecc71','#1abc9c','#3498db','#9b5
 const SK='mistakes-v1',GK='goals-v1',EK='exam-v1',DK='daily-v1',SUBJK='subjects-v1',THEMEK='theme-v1',RIVK='rev-interval-v1';
 
 const $=id=>document.getElementById(id);
-const el=(tag,attr={},kids=[])=>{const e=document.createElement(tag);Object.entries(attr).forEach(([k,v])=>{if(k==='style')Object.assign(e.style,v);else if(k==='class')e.className=v;else if(k.startsWith('on'))e[k]=v;else e.setAttribute(k,v)});kids.forEach(c=>e.appendChild(typeof c==='string'?document.createTextNode(c):c));return e;};
+const el=(tag,attr={},kids=[])=>{const e=document.createElement(tag);Object.entries(attr).forEach(([k,v])=>{if(k==='style')Object.assign(e.style,v);else if(k==='class')e.className=v;else if(k.startsWith('on'))e[k]=v;else e.setAttribute(k,v)});(Array.isArray(kids)?kids:[kids]).forEach(c=>{if(c==null)return;e.appendChild(typeof c==='string'?document.createTextNode(c):c)});return e;};
 const stow=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch{}};
 const load=(k,d)=>{try{const v=localStorage.getItem(k);return v!=null?JSON.parse(v):d}catch{return d}};
 const todayJST=()=>new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Tokyo'})).toISOString().slice(0,10);
