@@ -47,8 +47,10 @@ select option{background:var(--bg2);color:var(--fg)}
 .hstat.red{color:rgba(232,83,74,.75)}
 .hstat.green{color:rgba(78,202,139,.75)}
 #header-right{display:flex;gap:8px;align-items:center}
-#exam-badge{background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:8px;padding:4px 10px;text-align:center;font-variant-numeric:tabular-nums}
-#exam-badge .days{font-size:17px;font-weight:700;color:var(--accent);line-height:1}
+#exam-badge{background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:8px;padding:5px 11px;text-align:center;font-variant-numeric:tabular-nums;line-height:1.25}
+#exam-badge .exam-name{font-size:10px;color:var(--fg2);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px}
+#exam-badge .days-row{display:flex;align-items:baseline;gap:3px;justify-content:center}
+#exam-badge .days{font-size:17px;font-weight:700;color:var(--accent)}
 #exam-badge .label{font-size:10px;color:var(--fg3)}
 #menu-btn{width:34px;height:34px;border-radius:8px;background:var(--bg3);color:var(--fg2);font-size:18px;display:flex;align-items:center;justify-content:center}
 
@@ -102,6 +104,10 @@ select option{background:var(--bg2);color:var(--fg)}
 #auth-loading{text-align:center;color:var(--fg3);font-size:13px;padding:20px 0}
 
 /* Progress tab */
+.exam-section{border-left:3px solid var(--exam-color,var(--accent));border-radius:0 var(--radius) var(--radius) 0;padding-left:2px;margin-bottom:22px}
+.exam-section-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;padding:10px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);cursor:default}
+.sort-btn{width:24px;height:24px;display:flex;align-items:center;justify-content:center;border-radius:5px;background:rgba(255,255,255,.06);color:var(--fg3);font-size:13px;cursor:pointer;border:none;flex-shrink:0}
+.sort-btn:active{background:rgba(255,255,255,.12)}
 .book-block{margin-bottom:14px}
 .book-label{font-size:13px;font-weight:700;color:var(--fg);padding:9px 12px;background:rgba(255,255,255,.03);border-bottom:1px solid var(--border)}
 .sub-grid{display:grid;gap:8px;padding:10px 10px 12px;overflow-x:auto}
@@ -223,7 +229,7 @@ select option{background:var(--bg2);color:var(--fg)}
       </div>
     </div>
     <div id="header-right">
-      <div id="exam-badge" hidden><div class="days" id="exam-days">0</div><div class="label">日前</div></div>
+      <div id="exam-badge" hidden><div class="exam-name" id="exam-badge-name"></div><div class="days-row"><span class="label">あと</span><span class="days" id="exam-days">0</span><span class="label">日</span></div></div>
       <button id="menu-btn">⋯</button>
     </div>
   </div>
@@ -579,21 +585,40 @@ function renderHeader(){
   const upcoming=exams.filter(ex=>ex.examDate&&daysBetween(today,ex.examDate)>=0).sort((a,b)=>daysBetween(today,a.examDate)-daysBetween(today,b.examDate));
   if(upcoming.length){
     const dl=daysBetween(today,upcoming[0].examDate);
-    $('exam-days').textContent=dl;$('exam-badge').hidden=false;
-    $('exam-badge').title=upcoming[0].name;
+    $('exam-days').textContent=dl;
+    $('exam-badge-name').textContent=upcoming[0].name;
+    $('exam-badge').hidden=false;
   }else{$('exam-badge').hidden=true;}
 }
 
 // ============================================================
 // PROGRESS TAB
 // ============================================================
+function moveSubject(examId,subjId,dir){
+  updateExamHeader(examId,ex=>{
+    const arr=[...ex.subjects];const i=arr.findIndex(s=>s.id===subjId);
+    const j=i+dir;if(j<0||j>=arr.length)return ex;
+    [arr[i],arr[j]]=[arr[j],arr[i]];return{...ex,subjects:arr};
+  });
+  stow(EXAMSK,exams);syncCloud({exams});renderProgress();
+}
+function moveTextbook(examId,subjId,tbId,dir){
+  updateExamHeader(examId,ex=>({...ex,subjects:ex.subjects.map(s=>{
+    if(s.id!==subjId)return s;
+    const arr=[...s.textbooks];const i=arr.findIndex(t=>t.id===tbId);
+    const j=i+dir;if(j<0||j>=arr.length)return s;
+    [arr[i],arr[j]]=[arr[j],arr[i]];return{...s,textbooks:arr};
+  })}));
+  stow(EXAMSK,exams);syncCloud({exams});renderProgress();
+}
+
 function renderProgress(){
   const list=$('progress-list');list.innerHTML='';
   if(!exams.length){list.innerHTML='<div class="empty-msg">試験がありません。「＋ 試験追加」から追加してください</div>';return;}
   exams.forEach(exam=>{
-    // exam card
-    const examCard=el('div',{style:{marginBottom:'18px'}});
-    const examHead=el('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'8px',padding:'10px 12px',background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:'var(--radius)',cursor:'pointer'}});
+    // 試験セクション（左に色ボーダー）
+    const examSection=el('div',{class:'exam-section',style:{'--exam-color':exam.color||'var(--accent)'}});
+    const examHead=el('div',{class:'exam-section-head'});
     const examLeft=el('div');
     const examDl=exam.examDate?daysBetween(today,exam.examDate):null;
     const dlText=examDl!==null&&examDl>=0?` ・ あと${examDl}日`:(examDl!==null?' ・ 終了':'');
@@ -602,22 +627,31 @@ function renderProgress(){
     examRight.appendChild(el('button',{class:'btn ghost sm',onclick:e=>{e.stopPropagation();showAddSubjectModal(exam.id);}},['＋科目']));
     examRight.appendChild(el('button',{class:'btn ghost sm',onclick:e=>{e.stopPropagation();showEditExamModal(exam.id);}},['編集']));
     examHead.append(examLeft,examRight);
-    examCard.appendChild(examHead);
-    if(!exam.subjects.length){examCard.appendChild(el('div',{style:{color:'var(--fg3)',fontSize:'12px',padding:'6px 12px'}},'科目がありません'));examCard.style.marginBottom='18px';list.appendChild(examCard);return;}
-    exam.subjects.forEach(subj=>{
+    examSection.appendChild(examHead);
+    if(!exam.subjects.length){
+      examSection.appendChild(el('div',{style:{color:'var(--fg3)',fontSize:'12px',padding:'6px 12px'}},'科目がありません'));
+      list.appendChild(examSection);return;
+    }
+    exam.subjects.forEach((subj,si)=>{
       const subjBlock=el('div',{class:'card book-block',style:{marginBottom:'8px'}});
       const subjHead=el('div',{class:'book-label',style:{display:'flex',justifyContent:'space-between',alignItems:'center'}});
-      subjHead.appendChild(el('span',{style:{color:subj.color||'var(--fg)'}},[subj.name]));
+      // 科目名 ＋ ↑↓ソートボタン
+      const subjLeft=el('div',{style:{display:'flex',alignItems:'center',gap:'6px'}});
+      subjLeft.appendChild(el('span',{style:{color:subj.color||'var(--fg)'}},[subj.name]));
+      const subjSortBtns=el('div',{style:{display:'flex',gap:'2px'}});
+      if(si>0)subjSortBtns.appendChild(el('button',{class:'sort-btn',title:'上へ',onclick:e=>{e.stopPropagation();moveSubject(exam.id,subj.id,-1);}},['↑']));
+      if(si<exam.subjects.length-1)subjSortBtns.appendChild(el('button',{class:'sort-btn',title:'下へ',onclick:e=>{e.stopPropagation();moveSubject(exam.id,subj.id,1);}},['↓']));
+      subjLeft.appendChild(subjSortBtns);
       const subjBtns=el('div',{style:{display:'flex',gap:'4px'}});
       subjBtns.appendChild(el('button',{class:'btn ghost sm',style:{fontSize:'11px',padding:'3px 8px'},onclick:()=>showAddTextbookModal(exam.id,subj.id)},['＋教材']));
-      subjHead.appendChild(subjBtns);
+      subjHead.append(subjLeft,subjBtns);
       subjBlock.appendChild(subjHead);
       const tbs=showArchived?subj.textbooks:subj.textbooks.filter(tb=>!tb.archived);
-      if(!tbs.length){subjBlock.appendChild(el('div',{style:{color:'var(--fg3)',fontSize:'11px',padding:'8px 12px'}},'教材がありません'));examCard.appendChild(subjBlock);return;}
+      if(!tbs.length){subjBlock.appendChild(el('div',{style:{color:'var(--fg3)',fontSize:'11px',padding:'8px 12px'}},'教材がありません'));examSection.appendChild(subjBlock);return;}
       const st=subStyle(subj.color);
       const gridWrap=el('div',{style:{overflowX:'auto'}});
-      const grid=el('div',{class:'sub-grid',style:{gridTemplateColumns:`repeat(${tbs.length},minmax(110px,1fr))`,minWidth:tbs.length*118+'px'}});
-      tbs.forEach(tb=>{
+      const grid=el('div',{class:'sub-grid',style:{gridTemplateColumns:`repeat(${tbs.length},minmax(118px,1fr))`,minWidth:tbs.length*126+'px'}});
+      tbs.forEach((tb,ti)=>{
         const unit=bookUnit(tb.name);
         const pct=tb.total>0?Math.min(100,Math.round((tb.done||0)/tb.total*100)):0;
         const todayAdded=(tb.todayLog&&tb.todayLog[today])||0;
@@ -630,13 +664,19 @@ function renderProgress(){
         const left=Math.max(0,tb.total-(tb.done||0));
         const surplus=left>0?Math.ceil(left/remaining):0;
         const cell=el('div',{class:'sub-cell',style:{background:st.bg,borderColor:st.border}});
-        const nameEl=el('div',{class:'name',style:{color:st.text,cursor:'pointer'},title:'目標を編集',onclick:()=>showEditTextbookGoalModal(exam.id,subj.id,tb.id)},[tb.name]);
+        // 教材名行：名前＋教材の↑↓ボタン
+        const nameRow=el('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'5px'}});
+        const nameEl=el('div',{class:'name',style:{color:st.text,cursor:'pointer',flex:'1'},title:'目標を編集',onclick:()=>showEditTextbookGoalModal(exam.id,subj.id,tb.id)},[tb.name]);
+        const tbSortBtns=el('div',{style:{display:'flex',gap:'1px',marginLeft:'3px',flexShrink:'0'}});
+        if(ti>0)tbSortBtns.appendChild(el('button',{class:'sort-btn',style:{width:'18px',height:'18px',fontSize:'10px'},title:'左へ',onclick:e=>{e.stopPropagation();moveTextbook(exam.id,subj.id,tb.id,-1);}},['←']));
+        if(ti<tbs.length-1)tbSortBtns.appendChild(el('button',{class:'sort-btn',style:{width:'18px',height:'18px',fontSize:'10px'},title:'右へ',onclick:e=>{e.stopPropagation();moveTextbook(exam.id,subj.id,tb.id,1);}},['→']));
+        nameRow.append(nameEl,tbSortBtns);
         const pctRow=el('div',{class:'pct-row'});
         pctRow.appendChild(el('span',{class:'done-lbl'},[`${tb.done||0}/${tb.total}${unit}`]));
         pctRow.appendChild(el('span',{class:'pct-lbl',style:{color:st.text}},[pct+'%']));
         const bar=el('div',{class:'progress-bar'});
         bar.appendChild(el('div',{class:'progress-fill',style:{width:pct+'%',background:st.text}}));
-        cell.append(nameEl,bar,pctRow);
+        cell.append(nameRow,bar,pctRow);
         if(pct>=100){
           cell.appendChild(el('button',{class:'archive-btn-mini',onclick:()=>archiveTextbook(exam.id,subj.id,tb.id)},['🌸 完了']));
         }else{
@@ -655,9 +695,9 @@ function renderProgress(){
         grid.appendChild(cell);
       });
       gridWrap.appendChild(grid);subjBlock.appendChild(gridWrap);
-      examCard.appendChild(subjBlock);
+      examSection.appendChild(subjBlock);
     });
-    list.appendChild(examCard);
+    list.appendChild(examSection);
   });
 }
 
@@ -798,19 +838,11 @@ function showAddTextbookModal(examId,subjId){
     if(match&&!totalIn.value)totalIn.value=String(match.total);
   });
 
-  const startIn=el('input',{class:'input',type:'date'});
-  startIn.value=today;
-  const endIn=el('input',{class:'input',type:'date'});
-  endIn.value=exam.examDate||today; // 試験の終了日をデフォルトに
-
-  const dateRow=el('div',{style:{display:'flex',gap:'8px',alignItems:'center'}});
-  dateRow.append(startIn,el('span',{style:{color:'var(--fg3)',fontSize:'12px',flexShrink:'0'}},['→']),endIn);
-
   const addBtn=el('button',{class:'btn primary full',onclick:()=>{
     const n=nameIn.value.trim(),total=parseInt(totalIn.value)||0;
     if(!n){nameIn.focus();return;}
     if(!total){totalIn.focus();return;}
-    updateExamHeader(examId,ex=>({...ex,subjects:ex.subjects.map(s=>s.id!==subjId?s:{...s,textbooks:[...s.textbooks,{id:Date.now(),name:n,total,done:0,startDate:startIn.value||today,endDate:endIn.value||'',todayLog:{},archived:false}]})}));
+    updateExamHeader(examId,ex=>({...ex,subjects:ex.subjects.map(s=>s.id!==subjId?s:{...s,textbooks:[...s.textbooks,{id:Date.now(),name:n,total,done:0,startDate:today,endDate:exam.examDate||'',todayLog:{},archived:false}]})}));
     stow(EXAMSK,exams);syncCloud({exams});closeModal();renderAll();
   }},['追加']);
 
@@ -818,7 +850,6 @@ function showAddTextbookModal(examId,subjId){
     datalist,
     el('div',{class:'field'},[el('label',{},'教材名'),nameIn]),
     el('div',{class:'field'},[el('label',{},'目標数（問/ページ）'),totalIn]),
-    el('div',{class:'field'},[el('label',{},'開始日　→　終了日'),dateRow]),
     addBtn
   );
   openModal(modal);
