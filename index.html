@@ -103,23 +103,58 @@ select option{background:var(--bg2);color:var(--fg)}
 .auth-tab.active{background:var(--accent);color:#fff}
 #auth-loading{text-align:center;color:var(--fg3);font-size:13px;padding:20px 0}
 
-/* Progress tab */
-.exam-section{border-left:3px solid var(--exam-color,var(--accent));border-radius:0 var(--radius) var(--radius) 0;padding-left:2px;margin-bottom:22px}
-.exam-section-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;padding:10px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);cursor:default}
-.sort-btn{width:24px;height:24px;display:flex;align-items:center;justify-content:center;border-radius:5px;background:rgba(255,255,255,.06);color:var(--fg3);font-size:13px;cursor:pointer;border:none;flex-shrink:0}
+/* ===== Progress tab ===== */
+.exam-section{margin-bottom:18px}
+
+/* 試験カード */
+.exam-card{background:var(--bg2);border:1px solid var(--border);border-left:3px solid var(--exam-color,var(--accent));border-radius:var(--radius);overflow:hidden;margin-bottom:4px}
+.exam-card-head{padding:12px 12px 10px}
+.exam-card-title-row{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px}
+.exam-card-name{font-size:16px;font-weight:700;color:var(--exam-color,var(--fg));line-height:1.2}
+.exam-card-sub{font-size:11px;color:var(--fg3);margin-top:2px}
+.exam-card-btns{display:flex;gap:5px;flex-shrink:0;margin-left:8px}
+.exam-badges{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.ebadge{display:inline-flex;align-items:center;gap:3px;padding:4px 9px;border-radius:8px;font-size:12px;font-weight:700;border:1px solid}
+.ebadge.delay{background:rgba(232,83,74,.15);color:var(--danger);border-color:rgba(232,83,74,.3)}
+.ebadge.behind{background:rgba(232,83,74,.15);color:var(--danger);border-color:rgba(232,83,74,.3)}
+.ebadge.ok{background:rgba(78,202,139,.12);color:var(--ok);border-color:rgba(78,202,139,.25)}
+.exam-pct-row{display:flex;align-items:baseline;gap:8px;margin-bottom:6px}
+.exam-pct{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
+.exam-pct.warn{color:var(--warn)}
+.exam-pct.ok{color:var(--ok)}
+.exam-total{font-size:12px;color:var(--fg3);font-variant-numeric:tabular-nums}
+.exam-bar-wrap{height:6px;background:rgba(255,255,255,.07);border-radius:3px;overflow:hidden;margin-bottom:6px}
+.exam-bar-fill{height:100%;border-radius:3px;transition:width .4s}
+.exam-remain{font-size:11px;color:var(--fg3);font-variant-numeric:tabular-nums}
+.exam-remain .behind-num{color:var(--danger);font-weight:700}
+.exam-remain .pace{color:var(--warn);font-weight:600}
+
+/* 科目グリッド（横スクロール） */
+.subj-indent{padding-left:12px}
+.tb-indent{padding-left:0}
+.sort-btn{width:22px;height:22px;display:flex;align-items:center;justify-content:center;border-radius:5px;background:rgba(255,255,255,.06);color:var(--fg3);font-size:11px;cursor:pointer;border:none;flex-shrink:0}
 .sort-btn:active{background:rgba(255,255,255,.12)}
-.book-block{margin-bottom:14px}
-.book-label{font-size:13px;font-weight:700;color:var(--fg);padding:9px 12px;background:rgba(255,255,255,.03);border-bottom:1px solid var(--border)}
-.sub-grid{display:grid;gap:8px;padding:10px 10px 12px;overflow-x:auto}
-.sub-cell{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:8px;padding:10px;min-width:110px}
-.sub-cell .name{font-size:11px;font-weight:700;margin-bottom:5px}
-.sub-cell .pct-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px}
-.sub-cell .done-lbl{font-size:10px;color:var(--fg3);font-variant-numeric:tabular-nums}
-.sub-cell .pct-lbl{font-size:12px;font-weight:700;font-variant-numeric:tabular-nums}
-.delta-row{display:flex;gap:3px;margin-top:6px}
-.delta-btn{flex:1;background:rgba(255,255,255,.06);color:var(--fg2);border-radius:5px;padding:4px 0;font-size:11px;font-weight:600;border:none;cursor:pointer}
-.delta-btn:active{background:rgba(255,255,255,.12)}
-.hint-row{font-size:10px;color:var(--fg3);text-align:center;margin-top:5px;font-variant-numeric:tabular-nums}
+.book-block{margin-bottom:8px}
+.book-label{font-size:13px;font-weight:700;color:var(--fg);padding:8px 10px;background:rgba(255,255,255,.03);border-bottom:1px solid var(--border);border-left:2px solid var(--subj-color,var(--border))}
+
+/* 教材セル */
+.sub-grid{display:grid;gap:8px;padding:10px 10px 12px}
+.sub-cell{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:11px 10px;min-width:130px}
+.sub-cell .name{font-size:12px;font-weight:700;margin-bottom:6px;line-height:1.3}
+.sub-cell .pct-row{display:flex;justify-content:space-between;align-items:center;margin-top:4px;margin-bottom:3px}
+.sub-cell .done-lbl{font-size:11px;color:var(--fg3);font-variant-numeric:tabular-nums}
+.sub-cell .pct-lbl{font-size:13px;font-weight:700;font-variant-numeric:tabular-nums}
+.cell-badges{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.cbadge{display:inline-flex;align-items:center;gap:2px;padding:3px 7px;border-radius:6px;font-size:11px;font-weight:700;border:1px solid}
+.cbadge.behind{background:rgba(232,83,74,.15);color:var(--danger);border-color:rgba(232,83,74,.3)}
+.cbadge.delay{background:rgba(232,83,74,.15);color:var(--danger);border-color:rgba(232,83,74,.3)}
+.cbadge.pace{background:rgba(245,200,66,.1);color:var(--warn);border-color:rgba(245,200,66,.25)}
+.cbadge.today{background:rgba(78,202,139,.1);color:var(--ok);border-color:rgba(78,202,139,.2)}
+.delta-row{display:flex;gap:3px;margin-top:8px}
+.delta-btn{flex:1;background:rgba(255,255,255,.07);color:var(--fg2);border-radius:6px;padding:5px 0;font-size:12px;font-weight:700;border:none;cursor:pointer}
+.delta-btn:hover{background:rgba(255,255,255,.12)}
+.delta-btn:active{background:rgba(255,255,255,.18)}
+.delta-btn.minus{color:var(--danger);background:rgba(232,83,74,.1)}
 .archive-btn-mini{width:100%;background:rgba(245,200,66,.12);color:var(--warn);border:1px solid rgba(245,200,66,.25);border-radius:6px;padding:4px;font-size:11px;font-weight:700;cursor:pointer;margin-top:6px}
 .empty-msg{text-align:center;color:var(--fg3);font-size:13px;padding:40px 0}
 
@@ -166,6 +201,23 @@ select option{background:var(--bg2);color:var(--fg)}
 .share-count span{font-size:14px;font-weight:400;color:var(--fg2);margin-left:4px}
 .share-row{display:flex;gap:14px;margin-top:10px;flex-wrap:wrap}
 .share-stat{font-size:12px;color:var(--fg2)}
+/* 今日の成果タブ */
+.today-hero{background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:14px;padding:18px;margin-bottom:14px}
+.today-date{font-size:12px;color:var(--fg2);margin-bottom:6px;font-variant-numeric:tabular-nums}
+.today-total-row{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap}
+.today-total-num{font-size:32px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--fg)}
+.today-total-unit{font-size:14px;color:var(--fg2)}
+.today-goal-chip{font-size:13px;font-weight:700;margin-left:4px}
+.today-stats-row{display:flex;gap:14px;margin-top:8px;flex-wrap:wrap}
+.today-stat{font-size:12px;color:var(--fg2)}
+.today-stat.ok{color:var(--ok)}
+.today-section-title{font-size:13px;font-weight:700;color:var(--fg2);margin:14px 0 8px;letter-spacing:.03em}
+.complete-row{display:flex;align-items:center;gap:10px;background:rgba(78,202,139,.08);border:1px solid rgba(78,202,139,.2);border-radius:10px;padding:10px 12px;margin-bottom:8px}
+.complete-icon{font-size:20px;flex-shrink:0}
+.complete-info{flex:1;min-width:0}
+.complete-name{font-size:14px;font-weight:700;color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.complete-sub{font-size:11px;color:var(--fg3);margin-top:2px}
+.complete-badge{font-size:13px;font-weight:700;color:var(--ok);background:rgba(78,202,139,.15);border:1px solid rgba(78,202,139,.3);border-radius:6px;padding:3px 8px;flex-shrink:0}
 
 #dropdown{position:fixed;top:56px;right:14px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;min-width:170px;z-index:90;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,.4)}
 .dd-item{display:block;width:100%;padding:12px 15px;text-align:left;border-bottom:1px solid var(--border);color:var(--fg2);font-size:13px;background:none;border-left:none;border-right:none;border-top:none;cursor:pointer}
@@ -236,10 +288,12 @@ select option{background:var(--bg2);color:var(--fg)}
 
   <div id="content">
     <div id="tab-progress">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
         <button class="btn ghost sm" id="add-exam-btn">＋ 試験追加</button>
         <button class="btn ghost sm" id="toggle-archive-btn">アーカイブ表示</button>
       </div>
+      <div style="font-size:11px;color:var(--fg3);margin-bottom:8px;line-height:1.5">科目名・教材名の横の ↑↓ / ←→ を押すと表示順を入れ替えられます</div>
+      <div id="progress-today-bar" style="display:none;margin-bottom:10px"></div>
       <div id="progress-list"></div>
     </div>
 
@@ -309,14 +363,26 @@ select option{background:var(--bg2);color:var(--fg)}
     </div>
 
     <div id="tab-share" hidden>
-      <div class="share-hero">
-        <div class="share-date" id="share-date"></div>
-        <div class="share-count"><span id="share-total">0</span><span>問・ページ</span></div>
-        <div class="share-row">
-          <span class="share-stat" id="share-miss-stat">ミス 0問</span>
-          <span class="share-stat" style="color:var(--ok)" id="share-grad-stat">🎓 卒業 0問</span>
+      <!-- 今日の成果ヘッダー -->
+      <div class="today-hero">
+        <div class="today-date" id="share-date"></div>
+        <div class="today-total-row">
+          <span class="today-total-num" id="share-total">0</span>
+          <span class="today-total-unit">問・ページ</span>
+          <span class="today-goal-chip" id="today-goal-chip"></span>
+        </div>
+        <div class="today-stats-row">
+          <span class="today-stat" id="share-miss-stat"></span>
+          <span class="today-stat ok" id="share-grad-stat"></span>
         </div>
       </div>
+      <!-- 100%達成 -->
+      <div id="share-complete-section" hidden>
+        <div class="today-section-title">🎉 今日100%達成</div>
+        <div id="share-complete-list"></div>
+      </div>
+      <!-- 今日の記録一覧 -->
+      <div class="today-section-title" id="share-log-title">今日の記録</div>
       <div id="share-books"></div>
       <div id="share-empty" style="text-align:center;color:var(--fg3);font-size:13px;padding:20px 0" hidden>今日の記録はまだありません</div>
       <button class="btn full mt12" style="background:var(--accent-bg);color:var(--accent);border:1px solid var(--accent-border)" id="copy-share-btn">📋 テキストでコピー</button>
@@ -328,7 +394,7 @@ select option{background:var(--bg2);color:var(--fg)}
     <button class="nav-btn active" data-tab="progress"><span>📊</span><span>進捗</span><div class="nav-indicator"></div></button>
     <button class="nav-btn" data-tab="study"><span>📖</span><span>学習</span><div class="nav-indicator"></div></button>
     <button class="nav-btn" data-tab="mistake"><span>📚</span><span>間違い</span><div class="nav-indicator"></div></button>
-    <button class="nav-btn" data-tab="share"><span>📸</span><span>シェア</span><div class="nav-indicator"></div></button>
+    <button class="nav-btn" data-tab="share"><span>🌟</span><span>今日の成果</span><div class="nav-indicator"></div></button>
   </nav>
 </div>
 
@@ -603,99 +669,236 @@ function moveSubject(examId,subjId,dir){
   stow(EXAMSK,exams);syncCloud({exams});renderProgress();
 }
 function moveTextbook(examId,subjId,tbId,dir){
+  // まず操作対象の科目で並び替え、並び替え後の教材名順を取得
+  let newOrder=null;
   updateExamHeader(examId,ex=>({...ex,subjects:ex.subjects.map(s=>{
     if(s.id!==subjId)return s;
     const arr=[...s.textbooks];const i=arr.findIndex(t=>t.id===tbId);
     const j=i+dir;if(j<0||j>=arr.length)return s;
-    [arr[i],arr[j]]=[arr[j],arr[i]];return{...s,textbooks:arr};
+    [arr[i],arr[j]]=[arr[j],arr[i]];
+    newOrder=arr.map(t=>t.name); // 新しい名前順を記録
+    return{...s,textbooks:arr};
   })}));
+  // 同じ試験の他の科目にも名前順を連動
+  if(newOrder){
+    exams=exams.map(ex=>{
+      if(ex.id!==examId)return ex;
+      return{...ex,subjects:ex.subjects.map(s=>{
+        if(s.id===subjId)return s; // 操作元はすでに更新済み
+        // この科目の教材を newOrder の名前順でソート（含まれない名前は末尾）
+        const nameIdx=name=>newOrder.indexOf(name);
+        const sorted=[...s.textbooks].sort((a,b)=>{
+          const ai=nameIdx(a.name),bi=nameIdx(b.name);
+          if(ai===-1&&bi===-1)return 0;
+          if(ai===-1)return 1;
+          if(bi===-1)return-1;
+          return ai-bi;
+        });
+        return{...s,textbooks:sorted};
+      })};
+    });
+  }
   stow(EXAMSK,exams);syncCloud({exams});renderProgress();
 }
 
 function renderProgress(){
+  // 今日のバー（目標に対して今日何問解いたか）
+  const todayBar=$('progress-today-bar');
+  if(todayBar){
+    const todaySolved=allTextbooks().reduce((s,tb)=>s+((tb.todayLog&&tb.todayLog[today])||0),0);
+    if(dailyGoal>0){
+      const pct=Math.min(100,Math.round(todaySolved/dailyGoal*100));
+      const color=pct>=100?'var(--ok)':pct>=60?'var(--warn)':'var(--accent)';
+      todayBar.style.display='block';
+      todayBar.innerHTML='';
+      const labelRow=document.createElement('div');
+      labelRow.style.cssText='display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px';
+      const lbl=document.createElement('span');
+      lbl.style.cssText='font-size:12px;color:var(--fg2);font-weight:600';
+      lbl.textContent='今日の目標';
+      const val=document.createElement('span');
+      val.style.cssText='font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;color:'+color;
+      val.textContent=todaySolved+' / '+dailyGoal+' 問  ('+pct+'%)';
+      labelRow.append(lbl,val);
+      const wrap=document.createElement('div');
+      wrap.style.cssText='height:6px;background:rgba(255,255,255,.07);border-radius:3px;overflow:hidden';
+      const fill=document.createElement('div');
+      fill.style.cssText='height:100%;border-radius:3px;transition:width .4s;background:'+color+';width:'+pct+'%';
+      wrap.appendChild(fill);
+      todayBar.append(labelRow,wrap);
+    } else {
+      todayBar.style.display='none';
+    }
+  }
+
   const list=$('progress-list');list.innerHTML='';
   if(!exams.length){list.innerHTML='<div class="empty-msg">試験がありません。「＋ 試験追加」から追加してください</div>';return;}
   exams.forEach(exam=>{
-    // 試験セクション（左に色ボーダー）
     const examSection=el('div',{class:'exam-section',style:{'--exam-color':exam.color||'var(--accent)'}});
-    const examHead=el('div',{class:'exam-section-head'});
-    const examLeft=el('div');
+
+    // ── 試験カード集計 ──
+    const allTbs=exam.subjects.flatMap(s=>s.textbooks.filter(tb=>!tb.archived));
+    const examTotalQ=allTbs.reduce((a,tb)=>a+tb.total,0);
+    const examDoneQ=allTbs.reduce((a,tb)=>a+(tb.done||0),0);
+    const examPct=examTotalQ>0?Math.min(100,Math.round(examDoneQ/examTotalQ*100)):0;
+    const examEnd=exam.examDate||today;
+    const examRemaining=Math.max(1,daysBetween(today,examEnd));
+    const examLeft=Math.max(0,examTotalQ-examDoneQ);
+    // 試験全体の乖離：各教材の ideal 合計 vs done 合計
+    const examIdealTotal=allTbs.reduce((a,tb)=>{
+      const start=tb.startDate||today;
+      const td=daysBetween(start,examEnd)||1;
+      const el2=Math.max(0,daysBetween(start,today));
+      return a+Math.round(tb.total*(el2/td));
+    },0);
+    const examGap=examDoneQ-examIdealTotal; // 正=進んでいる 負=遅れ
+    const examUnit=examTotalQ>0?(allTbs.some(tb=>/p$|ページ/.test(tb.name))?'p':'問'):'問';
+
+    // ── 試験カードDOM ──
+    const examCard=el('div',{class:'exam-card'});
+    const head=el('div',{class:'exam-card-head'});
+
+    // タイトル行
+    const titleRow=el('div',{class:'exam-card-title-row'});
+    const titleLeft=el('div');
     const examDl=exam.examDate?daysBetween(today,exam.examDate):null;
-    const dlText=examDl!==null&&examDl>=0?` ・ あと${examDl}日`:(examDl!==null?' ・ 終了':'');
-    examLeft.appendChild(el('div',{style:{fontWeight:'700',fontSize:'14px',color:exam.color||'var(--fg)'}},[exam.name+dlText]));
-    const examRight=el('div',{style:{display:'flex',gap:'6px'}});
-    examRight.appendChild(el('button',{class:'btn ghost sm',onclick:e=>{e.stopPropagation();showAddSubjectModal(exam.id);}},['＋科目']));
-    examRight.appendChild(el('button',{class:'btn ghost sm',onclick:e=>{e.stopPropagation();showEditExamModal(exam.id);}},['編集']));
-    examHead.append(examLeft,examRight);
-    examSection.appendChild(examHead);
+    titleLeft.appendChild(el('div',{class:'exam-card-name'},[exam.name]));
+    const subTexts=[];
+    if(examDl!==null&&examDl>=0)subTexts.push('あと'+examDl+'日');
+    else if(examDl!==null)subTexts.push('終了');
+    subTexts.push(exam.subjects.length+'科目');
+    titleLeft.appendChild(el('div',{class:'exam-card-sub'},[subTexts.join(' ・ ')]));
+    const titleBtns=el('div',{class:'exam-card-btns'});
+    titleBtns.appendChild(el('button',{class:'btn ghost sm',onclick:()=>showAddSubjectModal(exam.id)},['＋科目']));
+    titleBtns.appendChild(el('button',{class:'btn ghost sm',onclick:()=>showEditExamModal(exam.id)},['編集']));
+    titleRow.append(titleLeft,titleBtns);
+    head.appendChild(titleRow);
+
+    // 乖離バッジ
+    if(examTotalQ>0){
+      const badges=el('div',{class:'exam-badges'});
+      if(examGap<0){
+        const behindDays=examRemaining>0?Math.ceil(Math.abs(examGap)/Math.max(1,examDoneQ/(Math.max(1,daysBetween(exam.subjects[0]?.textbooks[0]?.startDate||today,today)||1)))):0;
+        badges.appendChild(el('span',{class:'ebadge delay'},['🕐 '+(Math.abs(examGap))+examUnit+'遅れ']));
+      } else if(examGap>0){
+        badges.appendChild(el('span',{class:'ebadge ok'},['▲ +'+examGap+examUnit]));
+      }
+      if(examLeft>0&&examRemaining>0){
+        const pace=Math.ceil(examLeft/examRemaining);
+        badges.appendChild(el('span',{class:'ebadge pace',style:{background:'rgba(245,200,66,.1)',color:'var(--warn)',borderColor:'rgba(245,200,66,.25)'}},['残'+examLeft+examUnit+' ・ '+pace+examUnit+'/日']));
+      }
+      if(badges.children.length)head.appendChild(badges);
+    }
+
+    // 進捗バー＋%
+    if(examTotalQ>0){
+      const pctRow=el('div',{class:'exam-pct-row'});
+      const pctColor=examPct>=80?'var(--ok)':examPct>=50?'var(--warn)':'var(--danger)';
+      pctRow.appendChild(el('span',{class:'exam-pct',style:{color:pctColor}},[examPct+'%']));
+      pctRow.appendChild(el('span',{class:'exam-total'},[examDoneQ+'/'+examTotalQ+examUnit]));
+      head.appendChild(pctRow);
+      const barWrap=el('div',{class:'exam-bar-wrap'});
+      barWrap.appendChild(el('div',{class:'exam-bar-fill',style:{width:examPct+'%',background:pctColor}}));
+      head.appendChild(barWrap);
+    }
+
+    examCard.appendChild(head);
+    examSection.appendChild(examCard);
+
+    // ── 科目ブロック（インデント） ──
     if(!exam.subjects.length){
-      examSection.appendChild(el('div',{style:{color:'var(--fg3)',fontSize:'12px',padding:'6px 12px'}},'科目がありません'));
+      examSection.appendChild(el('div',{class:'subj-indent',style:{color:'var(--fg3)',fontSize:'12px',padding:'6px 4px'}},'科目がありません'));
       list.appendChild(examSection);return;
     }
     exam.subjects.forEach((subj,si)=>{
-      const subjBlock=el('div',{class:'card book-block',style:{marginBottom:'8px'}});
+      const subjWrap=el('div',{class:'subj-indent'});
+      const subjBlock=el('div',{class:'card book-block',style:{marginBottom:'8px','--subj-color':subj.color||'var(--border)'}});
       const subjHead=el('div',{class:'book-label',style:{display:'flex',justifyContent:'space-between',alignItems:'center'}});
-      // 科目名 ＋ ↑↓ソートボタン
-      const subjLeft=el('div',{style:{display:'flex',alignItems:'center',gap:'6px'}});
-      subjLeft.appendChild(el('span',{style:{color:subj.color||'var(--fg)'}},[subj.name]));
+      const subjLeft2=el('div',{style:{display:'flex',alignItems:'center',gap:'6px'}});
+      subjLeft2.appendChild(el('span',{style:{color:subj.color||'var(--fg)'}},[subj.name]));
       const subjSortBtns=el('div',{style:{display:'flex',gap:'2px'}});
       if(si>0)subjSortBtns.appendChild(el('button',{class:'sort-btn',title:'上へ',onclick:e=>{e.stopPropagation();moveSubject(exam.id,subj.id,-1);}},['↑']));
       if(si<exam.subjects.length-1)subjSortBtns.appendChild(el('button',{class:'sort-btn',title:'下へ',onclick:e=>{e.stopPropagation();moveSubject(exam.id,subj.id,1);}},['↓']));
-      subjLeft.appendChild(subjSortBtns);
+      subjLeft2.appendChild(subjSortBtns);
       const subjBtns=el('div',{style:{display:'flex',gap:'4px'}});
       subjBtns.appendChild(el('button',{class:'btn ghost sm',style:{fontSize:'11px',padding:'3px 8px'},onclick:()=>showAddTextbookModal(exam.id,subj.id)},['＋教材']));
-      subjHead.append(subjLeft,subjBtns);
+      subjHead.append(subjLeft2,subjBtns);
       subjBlock.appendChild(subjHead);
+
       const tbs=showArchived?subj.textbooks:subj.textbooks.filter(tb=>!tb.archived);
-      if(!tbs.length){subjBlock.appendChild(el('div',{style:{color:'var(--fg3)',fontSize:'11px',padding:'8px 12px'}},'教材がありません'));examSection.appendChild(subjBlock);return;}
+      if(!tbs.length){
+        subjBlock.appendChild(el('div',{style:{color:'var(--fg3)',fontSize:'11px',padding:'8px 12px'}},'教材がありません'));
+        subjWrap.appendChild(subjBlock);examSection.appendChild(subjWrap);return;
+      }
       const st=subStyle(subj.color);
-      const gridWrap=el('div',{style:{overflowX:'auto'}});
-      const grid=el('div',{class:'sub-grid',style:{gridTemplateColumns:`repeat(${tbs.length},minmax(118px,1fr))`,minWidth:tbs.length*126+'px'}});
+      const gridWrap=el('div',{style:{overflowX:'auto',paddingBottom:'2px'}});
+      const grid=el('div',{class:'sub-grid',style:{gridTemplateColumns:`repeat(${tbs.length},minmax(138px,1fr))`,minWidth:tbs.length*146+'px'}});
+
       tbs.forEach((tb,ti)=>{
         const unit=bookUnit(tb.name);
         const pct=tb.total>0?Math.min(100,Math.round((tb.done||0)/tb.total*100)):0;
         const todayAdded=(tb.todayLog&&tb.todayLog[today])||0;
-        const examEnd=exam.examDate||today;
         const start=tb.startDate||today;
-        const totalDays=daysBetween(start,examEnd)||1,elapsed=Math.max(0,daysBetween(start,today));
-        const remaining=Math.max(1,daysBetween(today,examEnd));
+        const end=tb.endDate||exam.examDate||today;
+        const totalDays=daysBetween(start,end)||1;
+        const elapsed=Math.max(0,daysBetween(start,today));
+        const remaining=Math.max(1,daysBetween(today,end));
         const ideal=Math.round(tb.total*(elapsed/totalDays));
-        const gap=(tb.done||0)-ideal;
+        const gap=(tb.done||0)-ideal;          // 正=進んでいる
         const left=Math.max(0,tb.total-(tb.done||0));
         const surplus=left>0?Math.ceil(left/remaining):0;
+        const delayDays=gap<0&&todayAdded>0?Math.ceil(Math.abs(gap)/todayAdded):
+                         gap<0&&surplus>0?Math.ceil(Math.abs(gap)/surplus):0;
+
+        const pctColor=pct>=80?st.text:pct>=50?'var(--warn)':'var(--danger)';
         const cell=el('div',{class:'sub-cell',style:{background:st.bg,borderColor:st.border}});
-        // 教材名行：名前＋教材の↑↓ボタン
-        const nameRow=el('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'5px'}});
-        const nameEl=el('div',{class:'name',style:{color:st.text,cursor:'pointer',flex:'1'},title:'目標を編集',onclick:()=>showEditTextbookGoalModal(exam.id,subj.id,tb.id)},[tb.name]);
-        const tbSortBtns=el('div',{style:{display:'flex',gap:'1px',marginLeft:'3px',flexShrink:'0'}});
-        if(ti>0)tbSortBtns.appendChild(el('button',{class:'sort-btn',style:{width:'18px',height:'18px',fontSize:'10px'},title:'左へ',onclick:e=>{e.stopPropagation();moveTextbook(exam.id,subj.id,tb.id,-1);}},['←']));
-        if(ti<tbs.length-1)tbSortBtns.appendChild(el('button',{class:'sort-btn',style:{width:'18px',height:'18px',fontSize:'10px'},title:'右へ',onclick:e=>{e.stopPropagation();moveTextbook(exam.id,subj.id,tb.id,1);}},['→']));
-        nameRow.append(nameEl,tbSortBtns);
+
+        // 教材名＋ソートボタン
+        const nameRow=el('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'6px'}});
+        const nameEl=el('div',{class:'name',style:{color:st.text,cursor:'pointer',flex:'1',lineHeight:'1.3'},title:'目標を編集',onclick:()=>showEditTextbookGoalModal(exam.id,subj.id,tb.id)},[tb.name]);
+        const tbSort=el('div',{style:{display:'flex',gap:'1px',marginLeft:'3px',flexShrink:'0'}});
+        if(ti>0)tbSort.appendChild(el('button',{class:'sort-btn',style:{width:'18px',height:'18px',fontSize:'10px'},onclick:e=>{e.stopPropagation();moveTextbook(exam.id,subj.id,tb.id,-1);}},['←']));
+        if(ti<tbs.length-1)tbSort.appendChild(el('button',{class:'sort-btn',style:{width:'18px',height:'18px',fontSize:'10px'},onclick:e=>{e.stopPropagation();moveTextbook(exam.id,subj.id,tb.id,1);}},['→']));
+        nameRow.append(nameEl,tbSort);
+
+        // 進捗バー
+        const bar=el('div',{class:'progress-bar',style:{height:'6px'}});
+        bar.appendChild(el('div',{class:'progress-fill',style:{width:pct+'%',background:pctColor}}));
+
+        // done/total ＋ %
         const pctRow=el('div',{class:'pct-row'});
         pctRow.appendChild(el('span',{class:'done-lbl'},[`${tb.done||0}/${tb.total}${unit}`]));
-        pctRow.appendChild(el('span',{class:'pct-lbl',style:{color:st.text}},[pct+'%']));
-        const bar=el('div',{class:'progress-bar'});
-        bar.appendChild(el('div',{class:'progress-fill',style:{width:pct+'%',background:st.text}}));
+        pctRow.appendChild(el('span',{class:'pct-lbl',style:{color:pctColor}},[pct+'%']));
+
         cell.append(nameRow,bar,pctRow);
+
         if(pct>=100){
           cell.appendChild(el('button',{class:'archive-btn-mini',onclick:()=>archiveTextbook(exam.id,subj.id,tb.id)},['🌸 完了']));
-        }else{
+        } else {
+          // バッジ行（遅れ・赤・目安ペース）
+          const badgeRow=el('div',{class:'cell-badges'});
+          if(gap<0)badgeRow.appendChild(el('span',{class:'cbadge behind'},['赤'+Math.abs(gap)+unit]));
+          if(delayDays>0)badgeRow.appendChild(el('span',{class:'cbadge delay'},['🕐 '+delayDays+'日遅れ']));
+          if(surplus>0)badgeRow.appendChild(el('span',{class:'cbadge pace'},[surplus+unit+'/日']));
+          if(todayAdded>0)badgeRow.appendChild(el('span',{class:'cbadge today'},['今日+'+todayAdded]));
+          if(badgeRow.children.length)cell.appendChild(badgeRow);
+
+          // ±ボタン
           const dRow=el('div',{class:'delta-row'});
-          [-1,1,5,10].forEach(d=>{dRow.appendChild(el('button',{class:'delta-btn',onclick:()=>updTextbook(exam.id,subj.id,tb.id,d)},[(d>0?'+':'')+d]));});
-          const hint=el('div',{class:'hint-row'});
-          let hp=[];
-          if(todayAdded>0)hp.push('今日+'+todayAdded);
-          if(surplus>0)hp.push('目安'+surplus+unit+'/日');
-          if(gap>0)hp.push({text:'+'+gap,color:'var(--ok)'});
-          else if(gap<0)hp.push({text:String(gap),color:'var(--danger)'});
-          hp.forEach(p=>{if(typeof p==='string')hint.appendChild(document.createTextNode(p+' '));else hint.appendChild(el('span',{style:{color:p.color}},[p.text+' ']));});
-          cell.append(dRow,hint);
+          [-1,1,5,10].forEach(d=>{
+            const btn=el('button',{class:'delta-btn'+(d<0?' minus':''),onclick:()=>updTextbook(exam.id,subj.id,tb.id,d)},[(d>0?'+':'')+d]);
+            dRow.appendChild(btn);
+          });
+          cell.appendChild(dRow);
+
           if(tb.archived)cell.appendChild(el('button',{class:'archive-btn-mini',style:{background:'rgba(255,255,255,.04)',color:'var(--fg3)',borderColor:'var(--border)'},onclick:()=>restoreTextbook(exam.id,subj.id,tb.id)},['復元']));
         }
         grid.appendChild(cell);
       });
-      gridWrap.appendChild(grid);subjBlock.appendChild(gridWrap);
-      examSection.appendChild(subjBlock);
+      gridWrap.appendChild(grid);
+      subjBlock.appendChild(gridWrap);
+      subjWrap.appendChild(subjBlock);
+      examSection.appendChild(subjWrap);
     });
     list.appendChild(examSection);
   });
@@ -1098,29 +1301,83 @@ function showManualAddModal(){
 // ============================================================
 function renderShare(){
   $('share-date').textContent=today;
-  const todayTbs=allTextbooks().map(tb=>({...tb,todayAdded:(tb.todayLog&&tb.todayLog[today])||0})).filter(tb=>tb.todayAdded>0);
+
+  // 今日進んだ教材
+  const allTbs=allTextbooks();
+  const todayTbs=allTbs.map(tb=>({...tb,todayAdded:(tb.todayLog&&tb.todayLog[today])||0})).filter(tb=>tb.todayAdded>0);
   const total=todayTbs.reduce((s,tb)=>s+tb.todayAdded,0);
   const todayMiss=mistakes.filter(m=>m.addedDate===today).length;
   const graduated=mistakes.filter(m=>(m.consecutiveCorrect||0)>=3).length;
+
   $('share-total').textContent=total;
-  $('share-miss-stat').textContent='ミス '+todayMiss+'問';
-  $('share-grad-stat').textContent='🎓 卒業 '+graduated+'問';
+
+  // 今日の目標チップ
+  const goalChip=$('today-goal-chip');
+  if(dailyGoal>0){
+    const pctOfGoal=Math.min(100,Math.round(total/dailyGoal*100));
+    const color=pctOfGoal>=100?'var(--ok)':pctOfGoal>=60?'var(--warn)':'var(--danger)';
+    goalChip.textContent='目標 '+total+'/'+dailyGoal+' ('+pctOfGoal+'%)';
+    goalChip.style.color=color;
+    goalChip.hidden=false;
+  } else {
+    goalChip.hidden=true;
+  }
+
+  $('share-miss-stat').textContent=todayMiss>0?'ミス '+todayMiss+'問':'';
+  $('share-grad-stat').textContent=graduated>0?'🎓 卒業 '+graduated+'問':'';
   $('share-empty').hidden=todayTbs.length>0;
+  $('share-log-title').hidden=todayTbs.length===0;
+
+  // 今日100%達成した教材
+  const completedToday=allTbs.filter(tb=>{
+    if(tb.total<=0)return false;
+    const pct=Math.round((tb.done||0)/tb.total*100);
+    const prevDone=Math.max(0,(tb.done||0)-((tb.todayLog&&tb.todayLog[today])||0));
+    const prevPct=Math.round(prevDone/tb.total*100);
+    return pct>=100&&prevPct<100;
+  });
+  const completeSection=$('share-complete-section');
+  const completeList=$('share-complete-list');
+  completeList.innerHTML='';
+  if(completedToday.length){
+    completeSection.hidden=false;
+    completedToday.forEach(tb=>{
+      const unit=bookUnit(tb.name);
+      const row=el('div',{class:'complete-row'});
+      row.appendChild(el('span',{class:'complete-icon'},['🌸']));
+      const info=el('div',{class:'complete-info'});
+      info.appendChild(el('div',{class:'complete-name'},[tb.name]));
+      info.appendChild(el('div',{class:'complete-sub'},[tb.subjectName+' ・ '+tb.total+unit+' 完了']));
+      row.appendChild(info);
+      row.appendChild(el('span',{class:'complete-badge'},['100%']));
+      completeList.appendChild(row);
+    });
+  } else {
+    completeSection.hidden=true;
+  }
+
+  // 今日の記録一覧（科目ごと）
   const booksDiv=$('share-books');booksDiv.innerHTML='';
-  // group by subject
   const subMap={};
   todayTbs.forEach(tb=>{(subMap[tb.subjectName]=subMap[tb.subjectName]||{color:tb.subjectColor,tbs:[]}).tbs.push(tb);});
   Object.entries(subMap).forEach(([subName,{color,tbs}])=>{
     const block=el('div',{class:'card book-block',style:{marginBottom:'8px'}});
     block.appendChild(el('div',{class:'book-label'},[subName]));
     const gridWrap=el('div',{style:{overflowX:'auto'}});
-    const grid=el('div',{class:'sub-grid',style:{gridTemplateColumns:`repeat(${tbs.length},minmax(100px,1fr))`,minWidth:tbs.length*108+'px'}});
+    const grid=el('div',{class:'sub-grid',style:{gridTemplateColumns:`repeat(${tbs.length},minmax(110px,1fr))`,minWidth:tbs.length*118+'px'}});
     tbs.forEach(tb=>{
       const unit=bookUnit(tb.name);
       const st=subStyle(color);
       const pct=tb.total>0?Math.min(100,Math.round((tb.done||0)/tb.total*100)):0;
+      const pctColor=pct>=100?'var(--ok)':pct>=50?st.text:'var(--warn)';
       const cell=el('div',{class:'sub-cell',style:{background:st.bg,borderColor:st.border,textAlign:'center'}});
-      cell.append(el('div',{class:'name',style:{color:st.text}},[tb.name]),el('div',{style:{color:'var(--fg3)',fontSize:'11px',marginBottom:'2px'}},['+'+tb.todayAdded+unit]),el('div',{style:{color:st.text,fontWeight:'700',fontSize:'13px'}},[pct+'%']));
+      cell.append(
+        el('div',{class:'name',style:{color:st.text}},[tb.name]),
+        el('div',{style:{color:'var(--accent)',fontWeight:'700',fontSize:'14px',margin:'4px 0'}},['＋'+tb.todayAdded+unit]),
+        el('div',{style:{color:'var(--fg3)',fontSize:'11px'}},[(tb.done||0)+'/'+tb.total+unit]),
+        el('div',{style:{color:pctColor,fontWeight:'700',fontSize:'13px'}},[pct+'%'])
+      );
+      if(pct>=100)cell.appendChild(el('div',{style:{fontSize:'16px',marginTop:'4px'}},['🌸']));
       grid.appendChild(cell);
     });
     gridWrap.appendChild(grid);block.appendChild(gridWrap);booksDiv.appendChild(block);
