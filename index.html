@@ -211,6 +211,7 @@ select option{background:var(--bg2);color:var(--fg)}
 .today-stats-row{display:flex;gap:14px;margin-top:8px;flex-wrap:wrap}
 .today-stat{font-size:12px;color:var(--fg2)}
 .today-stat.ok{color:var(--ok)}
+.today-stat.streak{font-weight:700}
 .today-section-title{font-size:13px;font-weight:700;color:var(--fg2);margin:14px 0 8px;letter-spacing:.03em}
 .complete-row{display:flex;align-items:center;gap:10px;background:rgba(78,202,139,.08);border:1px solid rgba(78,202,139,.2);border-radius:10px;padding:10px 12px;margin-bottom:8px}
 .complete-icon{font-size:20px;flex-shrink:0}
@@ -373,7 +374,7 @@ select option{background:var(--bg2);color:var(--fg)}
         </div>
         <div class="today-stats-row">
           <span class="today-stat" id="share-miss-stat"></span>
-          <span class="today-stat ok" id="share-grad-stat"></span>
+          <span class="today-stat streak" id="share-streak-stat"></span>
         </div>
       </div>
       <!-- 100%達成 -->
@@ -702,6 +703,7 @@ function moveTextbook(examId,subjId,tbId,dir){
 }
 
 function renderProgress(){
+  if(displayAxis==='textbook'){renderProgressTextbookAxis();return;}
   // 今日のバー（目標に対して今日何問解いたか）
   const todayBar=$('progress-today-bar');
   if(todayBar){
@@ -904,6 +906,117 @@ function renderProgress(){
   });
 }
 
+function renderProgressTextbookAxis(){
+  // 今日のバー（共通）
+  const todayBar=$('progress-today-bar');
+  if(todayBar){
+    const todaySolved=allTextbooks().reduce((s,tb)=>s+((tb.todayLog&&tb.todayLog[today])||0),0);
+    if(dailyGoal>0){
+      const pct=Math.min(100,Math.round(todaySolved/dailyGoal*100));
+      const color=pct>=100?'var(--ok)':pct>=60?'var(--warn)':'var(--accent)';
+      todayBar.style.display='block';todayBar.innerHTML='';
+      const lr=document.createElement('div');lr.style.cssText='display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px';
+      const ll=document.createElement('span');ll.style.cssText='font-size:12px;color:var(--fg2);font-weight:600';ll.textContent='今日の目標';
+      const lv=document.createElement('span');lv.style.cssText='font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;color:'+color;lv.textContent=todaySolved+' / '+dailyGoal+' 問  ('+pct+'%)';
+      lr.append(ll,lv);
+      const w=document.createElement('div');w.style.cssText='height:6px;background:rgba(255,255,255,.07);border-radius:3px;overflow:hidden';
+      const f=document.createElement('div');f.style.cssText='height:100%;border-radius:3px;transition:width .4s;background:'+color+';width:'+pct+'%';w.appendChild(f);
+      todayBar.append(lr,w);
+    } else { todayBar.style.display='none'; }
+  }
+
+  const list=$('progress-list');list.innerHTML='';
+  if(!exams.length){list.innerHTML='<div class="empty-msg">試験がありません</div>';return;}
+
+  // 全教材を教材名でグループ化
+  const tbMap={}; // tbName -> [{examId,examName,examColor,examDate,subjId,subjName,subjColor,tb}]
+  const tbOrder=[]; // 初出順を保持
+  exams.forEach(exam=>{
+    exam.subjects.forEach(subj=>{
+      const tbs=showArchived?subj.textbooks:subj.textbooks.filter(t=>!t.archived);
+      tbs.forEach(tb=>{
+        if(!tbMap[tb.name]){tbMap[tb.name]=[];tbOrder.push(tb.name);}
+        tbMap[tb.name].push({examId:exam.id,examName:exam.name,examColor:exam.color,examDate:exam.examDate,subjId:subj.id,subjName:subj.name,subjColor:subj.color,tb});
+      });
+    });
+  });
+
+  if(!tbOrder.length){list.innerHTML='<div class="empty-msg">教材がありません</div>';return;}
+
+  tbOrder.forEach(tbName=>{
+    const entries=tbMap[tbName];
+    const section=el('div',{style:{marginBottom:'16px'}});
+    // 教材名ヘッダー
+    const tbHead=el('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'6px',padding:'0 2px'}});
+    const totalDone=entries.reduce((s,e)=>s+(e.tb.done||0),0);
+    const totalTotal=entries.reduce((s,e)=>s+e.tb.total,0);
+    const overallPct=totalTotal>0?Math.min(100,Math.round(totalDone/totalTotal*100)):0;
+    const pctColor=overallPct>=80?'var(--ok)':overallPct>=50?'var(--warn)':'var(--danger)';
+    const headLeft=el('div',{style:{display:'flex',alignItems:'baseline',gap:'8px'}});
+    headLeft.appendChild(el('span',{style:{fontSize:'15px',fontWeight:'700',color:'var(--fg)'}},[tbName]));
+    headLeft.appendChild(el('span',{style:{fontSize:'12px',fontWeight:'700',color:pctColor,fontVariantNumeric:'tabular-nums'}},[overallPct+'%']));
+    headLeft.appendChild(el('span',{style:{fontSize:'11px',color:'var(--fg3)',fontVariantNumeric:'tabular-nums'}},[totalDone+'/'+totalTotal+bookUnit(tbName)]));
+    tbHead.appendChild(headLeft);
+    section.appendChild(tbHead);
+
+    // 全体バー
+    const barWrap=el('div',{style:{height:'5px',background:'rgba(255,255,255,.07)',borderRadius:'3px',overflow:'hidden',marginBottom:'8px'}});
+    barWrap.appendChild(el('div',{style:{height:'100%',borderRadius:'3px',transition:'width .4s',background:pctColor,width:overallPct+'%'}}));
+    section.appendChild(barWrap);
+
+    // 科目セルグリッド
+    const gridWrap=el('div',{style:{overflowX:'auto',paddingBottom:'2px'}});
+    const grid=el('div',{class:'sub-grid',style:{gridTemplateColumns:`repeat(${entries.length},minmax(138px,1fr))`,minWidth:entries.length*146+'px'}});
+    entries.forEach(({examId,examName,examColor,examDate,subjId,subjName,subjColor,tb})=>{
+      const unit=bookUnit(tb.name);
+      const pct=tb.total>0?Math.min(100,Math.round((tb.done||0)/tb.total*100)):0;
+      const todayAdded=(tb.todayLog&&tb.todayLog[today])||0;
+      const start=tb.startDate||today;
+      const end=tb.endDate||examDate||today;
+      const totalDays2=daysBetween(start,end)||1;
+      const elapsed=Math.max(0,daysBetween(start,today));
+      const remaining=Math.max(1,daysBetween(today,end));
+      const ideal=Math.round(tb.total*(elapsed/totalDays2));
+      const gap=(tb.done||0)-ideal;
+      const left=Math.max(0,tb.total-(tb.done||0));
+      const surplus=left>0?Math.ceil(left/remaining):0;
+      const st=subStyle(subjColor);
+      const cellColor=pct>=80?st.text:pct>=50?'var(--warn)':'var(--danger)';
+
+      const cell=el('div',{class:'sub-cell',style:{background:st.bg,borderColor:st.border}});
+      // 科目名＋試験名
+      const hd=el('div',{style:{marginBottom:'5px'}});
+      hd.appendChild(el('div',{style:{fontSize:'12px',fontWeight:'700',color:st.text,lineHeight:'1.3',cursor:'pointer'},onclick:()=>showEditTextbookGoalModal(examId,subjId,tb.id)},[subjName]));
+      hd.appendChild(el('div',{style:{fontSize:'10px',color:'var(--fg3)',marginTop:'1px'}},[examName]));
+      cell.appendChild(hd);
+      // バー
+      const bar=el('div',{class:'progress-bar',style:{height:'5px'}});
+      bar.appendChild(el('div',{class:'progress-fill',style:{width:pct+'%',background:cellColor}}));
+      // done/total + %
+      const pr=el('div',{class:'pct-row'});
+      pr.appendChild(el('span',{class:'done-lbl'},[(tb.done||0)+'/'+tb.total+unit]));
+      pr.appendChild(el('span',{class:'pct-lbl',style:{color:cellColor}},[pct+'%']));
+      cell.append(bar,pr);
+      if(pct>=100){
+        cell.appendChild(el('button',{class:'archive-btn-mini',onclick:()=>archiveTextbook(examId,subjId,tb.id)},['🌸 完了']));
+      } else {
+        const badgeRow=el('div',{class:'cell-badges'});
+        if(gap<0)badgeRow.appendChild(el('span',{class:'cbadge behind'},['赤'+Math.abs(gap)+unit]));
+        if(surplus>0)badgeRow.appendChild(el('span',{class:'cbadge pace'},[surplus+unit+'/日']));
+        if(todayAdded>0)badgeRow.appendChild(el('span',{class:'cbadge today'},['今日+'+todayAdded]));
+        if(badgeRow.children.length)cell.appendChild(badgeRow);
+        const dRow=el('div',{class:'delta-row'});
+        [-1,1,5,10].forEach(d=>{dRow.appendChild(el('button',{class:'delta-btn'+(d<0?' minus':''),onclick:()=>updTextbook(examId,subjId,tb.id,d)},[(d>0?'+':'')+d]));});
+        cell.appendChild(dRow);
+      }
+      grid.appendChild(cell);
+    });
+    gridWrap.appendChild(grid);
+    section.appendChild(gridWrap);
+    list.appendChild(section);
+  });
+}
+
 function updTextbook(examId,subjId,tbId,delta){
   updateTextbook(subjId,tbId,tb=>{const done=Math.max(0,Math.min(tb.total,(tb.done||0)+delta));const log={...(tb.todayLog||{})};log[today]=(log[today]||0)+delta;return{...tb,done,todayLog:log};});
   stow(EXAMSK,exams);syncCloud({exams});renderAll();
@@ -919,6 +1032,7 @@ function showEditTextbookGoalModal(examId,subjId,tbId){
   const modal=makeModal('目標編集（'+tb.name+'）');
   const totalIn=el('input',{class:'input',type:'number',style:{width:'100%'},placeholder:'目標数（問/ページ）',min:'1'});
   totalIn.value=String(tb.total||'');
+  if(goalLock){totalIn.readOnly=true;totalIn.style.opacity='0.5';totalIn.style.cursor='not-allowed';totalIn.title='設定で目標数ロックが有効です';}
   const startIn=el('input',{class:'input',type:'date'});
   startIn.value=tb.startDate||today;
   const endIn=el('input',{class:'input',type:'date'});
@@ -931,7 +1045,7 @@ function showEditTextbookGoalModal(examId,subjId,tbId){
   doneIn.value=String(tb.done||0);
   doneRow.appendChild(doneIn);
   const saveBtn=el('button',{class:'btn primary full',onclick:()=>{
-    const newTotal=parseInt(totalIn.value)||0;
+    const newTotal=goalLock?tb.total:(parseInt(totalIn.value)||0);
     const newDone=Math.max(0,parseInt(doneIn.value)||0);
     if(!newTotal){totalIn.focus();return;}
     updateTextbook(subjId,tbId,t=>({...t,total:newTotal,done:Math.min(newDone,newTotal),startDate:startIn.value||today,endDate:endIn.value||''}));
@@ -1094,6 +1208,24 @@ function updateAnswerAreaColor(){
 
 // 今日の目標・ペース・正答率
 let dailyGoal=parseInt(localStorage.getItem('daily-goal-v1')||'0')||0;
+let displayAxis=localStorage.getItem('display-axis-v1')||'subject'; // 'subject' | 'textbook'
+let goalLock=localStorage.getItem('goal-lock-v1')==='1'; // true=目標数ロック
+
+// 目標連続達成日数の計算
+function calcGoalStreak(){
+  if(!dailyGoal)return 0;
+  // 過去90日分を遡って連続達成日数を計算
+  const allTbs=allTextbooks();
+  let streak=0;
+  for(let i=0;i<90;i++){
+    const d=new Date();d.setDate(d.getDate()-i);
+    const ds=[d.getFullYear(),(d.getMonth()+1).toString().padStart(2,'0'),d.getDate().toString().padStart(2,'0')].join('-');
+    const dayTotal=allTbs.reduce((s,tb)=>s+((tb.todayLog&&tb.todayLog[ds])||0),0);
+    if(dayTotal>=dailyGoal)streak++;
+    else break;
+  }
+  return streak;
+}
 let todayOk=0,todayTotal=0; // 今日の正答数・総問数
 
 function updateStudyStats(){
@@ -1307,7 +1439,6 @@ function renderShare(){
   const todayTbs=allTbs.map(tb=>({...tb,todayAdded:(tb.todayLog&&tb.todayLog[today])||0})).filter(tb=>tb.todayAdded>0);
   const total=todayTbs.reduce((s,tb)=>s+tb.todayAdded,0);
   const todayMiss=mistakes.filter(m=>m.addedDate===today).length;
-  const graduated=mistakes.filter(m=>(m.consecutiveCorrect||0)>=3).length;
 
   $('share-total').textContent=total;
 
@@ -1324,7 +1455,20 @@ function renderShare(){
   }
 
   $('share-miss-stat').textContent=todayMiss>0?'ミス '+todayMiss+'問':'';
-  $('share-grad-stat').textContent=graduated>0?'🎓 卒業 '+graduated+'問':'';
+
+  // 連続達成日数
+  const streakEl=$('share-streak-stat');
+  if(dailyGoal>0){
+    const streak=calcGoalStreak();
+    if(streak>=1){
+      streakEl.textContent='🔥 '+streak+'日連続達成';
+      streakEl.style.color=streak>=7?'var(--warn)':'var(--ok)';
+    } else {
+      streakEl.textContent='';
+    }
+  } else {
+    streakEl.textContent='';
+  }
   $('share-empty').hidden=todayTbs.length>0;
   $('share-log-title').hidden=todayTbs.length===0;
 
@@ -1415,6 +1559,36 @@ function showSettingsModal(){
   rivIn.addEventListener('input',()=>{const v=parseInt(rivIn.value)||7;reviewInterval=v;stow(RIVK,reviewInterval);$('review-interval').value=reviewInterval;renderMistakeStats();renderHeader();});
   rivIn.addEventListener('change',()=>{const v=parseInt(rivIn.value)||7;reviewInterval=v;stow(RIVK,reviewInterval);$('review-interval').value=reviewInterval;renderMistakeStats();renderHeader();});
   const rivField=el('div',{class:'field'},[el('label',{},'復習間隔（日）'),rivIn]);
+  // 表示軸トグル
+  function makeToggleRow(labelText,descText,isOn,onChange){
+    const row=el('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:'12px',padding:'10px 0',borderBottom:'1px solid var(--border)'}});
+    const left=el('div');
+    left.appendChild(el('div',{style:{fontSize:'13px',color:'var(--fg)',fontWeight:'600',marginBottom:'2px'}},[labelText]));
+    if(descText)left.appendChild(el('div',{style:{fontSize:'11px',color:'var(--fg3)',lineHeight:'1.4'}},[descText]));
+    const sw=el('div',{style:{position:'relative',width:'40px',height:'22px',flexShrink:'0',cursor:'pointer',marginTop:'2px'}});
+    const track=el('div',{style:{position:'absolute',inset:'0',borderRadius:'11px',background:isOn?'var(--accent)':'rgba(255,255,255,.12)',transition:'background .2s'}});
+    const knob=el('div',{style:{position:'absolute',top:'3px',left:isOn?'21px':'3px',width:'16px',height:'16px',borderRadius:'50%',background:'#fff',transition:'left .2s',boxShadow:'0 1px 3px rgba(0,0,0,.3)'}});
+    sw.append(track,knob);
+    let state=isOn;
+    sw.onclick=()=>{state=!state;track.style.background=state?'var(--accent)':'rgba(255,255,255,.12)';knob.style.left=state?'21px':'3px';onChange(state);};
+    row.append(left,sw);
+    return row;
+  }
+  const axisSection=el('div',{style:{margin:'4px 0 2px'}});
+  axisSection.appendChild(el('div',{style:{fontSize:'11px',color:'var(--fg3)',fontWeight:'700',letterSpacing:'.05em',margin:'8px 0 4px'}},'進捗タブの表示'));
+  axisSection.appendChild(makeToggleRow(
+    '教材軸で表示',
+    '教材名でまとめ、各科目の進捗を横並び表示\n（OFFで科目軸 = 科目の中に教材を表示）',
+    displayAxis==='textbook',
+    v=>{displayAxis=v?'textbook':'subject';localStorage.setItem('display-axis-v1',displayAxis);if(currentTab==='progress')renderProgress();}
+  ));
+  axisSection.appendChild(makeToggleRow(
+    '目標数をロック',
+    '教材名をタップしても目標数を変更できなくする',
+    goalLock,
+    v=>{goalLock=v;localStorage.setItem('goal-lock-v1',v?'1':'0');}
+  ));
+
   const userInfo=el('div',{style:{borderTop:'1px solid var(--border)',paddingTop:'14px',marginTop:'6px'}});
   userInfo.appendChild(el('div',{style:{fontSize:'12px',color:'var(--fg3)',marginBottom:'4px'}},'ログイン中'));
   userInfo.appendChild(el('div',{style:{fontSize:'13px',color:'var(--fg2)',marginBottom:'10px'}},[currentUser?.email||'']));
@@ -1426,7 +1600,7 @@ function showSettingsModal(){
     setTimeout(()=>{pwBtn.textContent='パスワードを変更する';pwBtn.disabled=false;},3000);
   }},['パスワードを変更する']);
   userInfo.appendChild(pwBtn);
-  modal.append(themeLabel,rivField,userInfo);
+  modal.append(themeLabel,rivField,axisSection,userInfo);
   openModal(modal);
 }
 
