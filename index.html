@@ -224,7 +224,9 @@ select option{background:var(--bg2);color:var(--fg)}
 .rev-ok{background:var(--ok-bg);color:var(--ok)}
 .rev-tri{background:var(--warn-bg);color:var(--warn)}
 .rev-ng{background:var(--danger-bg);color:var(--danger)}
-.rev-del{background:rgba(255,255,255,.05);color:var(--fg3);font-size:12px;padding:6px 8px}
+.rev-del{background:rgba(255,255,255,.05);color:var(--fg3);font-size:12px;padding:6px 8px;flex:none}
+.rev-star{background:rgba(255,255,255,.05);color:var(--fg3);font-size:13px;padding:6px 8px;flex:none}
+.rev-star.starred{background:rgba(245,200,66,.15);color:var(--warn)}
 
 .share-hero{background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:14px;padding:18px;margin-bottom:14px}
 .share-date{font-size:12px;color:var(--fg2);margin-bottom:6px}
@@ -320,13 +322,20 @@ select option{background:var(--bg2);color:var(--fg)}
 
   <div id="content">
     <div id="tab-progress">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-        <button class="btn ghost sm" id="add-exam-btn">＋ 試験追加</button>
+      <div style="display:flex;justify-content:flex-end;align-items:center;margin-bottom:4px">
         <button class="btn ghost sm" id="toggle-archive-btn">アーカイブ表示</button>
       </div>
       <div style="font-size:11px;color:var(--fg3);margin-bottom:8px;line-height:1.5">科目名・教材名の横の ↑↓ を押すと表示順を入れ替えられます</div>
       <div id="progress-today-bar" style="display:none;margin-bottom:10px"></div>
       <div id="progress-list"></div>
+    </div>
+
+    <!-- ▼ 教材タブ -->
+    <div id="tab-textbook" hidden>
+      <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
+        <button class="btn primary sm" id="add-exam-btn">＋ 試験追加</button>
+      </div>
+      <div id="textbook-list"></div>
     </div>
 
     <div id="tab-study" hidden>
@@ -389,6 +398,7 @@ select option{background:var(--bg2);color:var(--fg)}
         </div>
         <div class="session-foot">
           <button class="btn ghost sm" id="sess-undo-btn" disabled>↩ 戻る</button>
+          <button class="btn ghost sm" id="sess-star-btn" style="font-size:16px;padding:6px 10px">☆</button>
           <div class="session-count">
             <span class="c-ok">○ <span id="sess-cnt-ok">0</span></span>
             <span class="c-tri">△ <span id="sess-cnt-tri">0</span></span>
@@ -415,9 +425,12 @@ select option{background:var(--bg2);color:var(--fg)}
           <span style="font-size:11px;color:var(--fg3)">日</span>
         </div>
       </div>
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:6px">
         <span id="undo-rem-wrap" hidden><button class="btn ghost sm" id="undo-rem-btn">↩ 取消</button></span>
-        <button class="btn ghost sm" id="toggle-grad-btn" style="margin-left:auto">卒業済み表示</button>
+        <div style="display:flex;gap:6px;margin-left:auto">
+          <button class="btn ghost sm" id="toggle-star-btn">⭐ ★のみ</button>
+          <button class="btn ghost sm" id="toggle-grad-btn">卒業済み表示</button>
+        </div>
       </div>
       <div id="mistake-list"></div>
       <div style="text-align:center;margin-top:16px">
@@ -457,7 +470,8 @@ select option{background:var(--bg2);color:var(--fg)}
     <button class="nav-btn active" data-tab="progress"><span>📊</span><span>進捗</span><div class="nav-indicator"></div></button>
     <button class="nav-btn" data-tab="study"><span>📖</span><span>学習</span><div class="nav-indicator"></div></button>
     <button class="nav-btn" data-tab="mistake"><span>📚</span><span>間違い</span><div class="nav-indicator"></div></button>
-    <button class="nav-btn" data-tab="share"><span>🌟</span><span>今日の成果</span><div class="nav-indicator"></div></button>
+    <button class="nav-btn" data-tab="textbook"><span>📋</span><span>教材</span><div class="nav-indicator"></div></button>
+    <button class="nav-btn" data-tab="share"><span>🌟</span><span>成果</span><div class="nav-indicator"></div></button>
   </nav>
 </div>
 
@@ -527,7 +541,7 @@ function subStyle(color){
 // ============================================================
 // exams: [{id,name,examDate,color,subjects:[{id,name,color,textbooks:[{id,name,total,done,startDate,todayLog,archived}]}]}]
 let mistakes=[],exams=[],daily={date:'',subCount:{},reviewGoal:0,reviewCount:0},themeColor='dark',reviewInterval=7;
-let showArchived=false,showGrad=false,lastAns=null,lastRem=null;
+let showArchived=false,showGrad=false,showStarOnly=false,lastAns=null,lastRem=null;
 let currentTab='progress';
 let currentUser=null;
 let sbTimer=null;
@@ -1167,6 +1181,47 @@ $('toggle-archive-btn').onclick=()=>{showArchived=!showArchived;$('toggle-archiv
 $('add-exam-btn').onclick=()=>showAddExamModal();
 
 // ============================================================
+// TEXTBOOK TAB — 教材管理
+// ============================================================
+function renderTextbookTab(){
+  const list=$('textbook-list');list.innerHTML='';
+  exams.forEach(exam=>{
+    if(!showArchived&&exam.archived)return;
+    const examDiv=el('div',{style:{marginBottom:'16px'}});
+    const examHead=el('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'8px'}});
+    examHead.appendChild(el('span',{style:{fontWeight:'700',fontSize:'14px',color:'var(--fg)'}},[exam.name]));
+    const examBtns=el('div',{style:{display:'flex',gap:'6px'}});
+    examBtns.appendChild(el('button',{class:'btn ghost sm',onclick:()=>showAddSubjectModal(exam.id)},['＋科目']));
+    examBtns.appendChild(el('button',{class:'btn ghost sm',onclick:()=>showEditExamModal(exam.id)},['編集']));
+    examHead.appendChild(examBtns);
+    examDiv.appendChild(examHead);
+    exam.subjects?.forEach(subj=>{
+      if(!showArchived&&subj.archived)return;
+      const subjDiv=el('div',{style:{background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:'10px',padding:'10px 12px',marginBottom:'8px'}});
+      const subStyle2=subStyle(subj.color);
+      const subjHead=el('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'8px'}});
+      const subjLeft=el('div',{style:{display:'flex',alignItems:'center',gap:'8px'}});
+      subjLeft.appendChild(el('span',{style:{width:'10px',height:'10px',borderRadius:'50%',background:subj.color,display:'inline-block',flexShrink:'0'}}));
+      subjLeft.appendChild(el('span',{style:{fontWeight:'700',fontSize:'13px',color:subStyle2.text}},[subj.name]));
+      subjHead.appendChild(subjLeft);
+      subjHead.appendChild(el('button',{class:'btn ghost sm',onclick:()=>showAddTextbookModal(exam.id,subj.id)},['＋教材']));
+      subjDiv.appendChild(subjHead);
+      subj.textbooks?.forEach(tb=>{
+        if(!showArchived&&tb.archived)return;
+        const row=el('div',{style:{display:'flex',alignItems:'center',gap:'8px',padding:'6px 0',borderTop:'1px solid var(--border)'}});
+        row.appendChild(el('span',{style:{flex:'1',fontSize:'13px',color:'var(--fg)'}},[tb.name]));
+        if(tb.total>0)row.appendChild(el('span',{style:{fontSize:'11px',color:'var(--fg3)'}},[`${tb.done||0}/${tb.total}`]));
+        row.appendChild(el('button',{class:'btn ghost sm',style:{fontSize:'11px',padding:'3px 8px'},onclick:()=>showEditTextbookGoalModal(exam.id,subj.id,tb.id)},['設定']));
+        subjDiv.appendChild(row);
+      });
+      examDiv.appendChild(subjDiv);
+    });
+    list.appendChild(examDiv);
+  });
+  if(exams.length===0)list.innerHTML='<div class="empty-msg">試験がありません。「＋ 試験追加」から追加してください。</div>';
+}
+
+// ============================================================
 // ADD / EDIT EXAM MODAL
 // ============================================================
 function showAddExamModal(){
@@ -1452,7 +1507,9 @@ function startSession(){
   const sub=$('study-sub').value,book=$('study-book').value;
   if(!sub||!book)return;
   sessionActive=true;
-  sessionCount=0;
+  // 今日のこの教材の問数から継続（今日10問済みならNo.11から）
+  const bkeyStart=sub+'___'+book;
+  sessionCount=(daily.subCount||{})[bkeyStart]||0;
   sessionCounts={ok:0,tri:0,ng:0};
   sessionLastAns=null;
   sessionStartTime=Date.now();
@@ -1467,6 +1524,7 @@ function startSession(){
   updateSessionGoalLabel();
   updateSessionCounts();
   $('sess-undo-btn').disabled=true;
+  $('sess-star-btn').textContent='☆';$('sess-star-btn').style.color='';
   $('session-memo').value='';
   // 画面切替
   $('study-pre').style.display='none';
@@ -1506,6 +1564,27 @@ $('sess-ok').onclick=()=>sessionAnswer('○');
 $('sess-tri').onclick=()=>sessionAnswer('△');
 $('sess-ng').onclick=()=>sessionAnswer('✕');
 
+// ★ボタン：直前に回答した問題に★をつける/外す
+$('sess-star-btn').onclick=()=>{
+  if(!sessionLastAns)return;
+  const {pno,sub,book}=sessionLastAns;
+  const m=mistakes.find(m=>m.subject===sub&&m.textbook===book&&m.problemNo===pno);
+  if(!m)return;
+  mistakes=mistakes.map(x=>x.id===m.id?{...x,starred:!x.starred}:x);
+  stow(SK,mistakes);syncNow({mistakes});
+  const starred=!m.starred;
+  $('sess-star-btn').textContent=starred?'⭐':'☆';
+  $('sess-star-btn').style.color=starred?'var(--warn)':'';
+};
+function updateSessStarBtn(){
+  if(!sessionLastAns){$('sess-star-btn').textContent='☆';$('sess-star-btn').style.color='';return;}
+  const {pno,sub,book}=sessionLastAns;
+  const m=mistakes.find(m=>m.subject===sub&&m.textbook===book&&m.problemNo===pno);
+  const starred=m?.starred||false;
+  $('sess-star-btn').textContent=starred?'⭐':'☆';
+  $('sess-star-btn').style.color=starred?'var(--warn)':'';
+}
+
 $('sess-undo-btn').onclick=()=>{
   if(!sessionLastAns)return;
   const {type,pno,sub,book,prevMemo}=sessionLastAns;
@@ -1528,7 +1607,7 @@ $('sess-undo-btn').onclick=()=>{
   sessionLastAns=null;
   $('sess-undo-btn').disabled=true;
   $('session-memo').value=prevMemo||'';
-  updateSessionNo();updateSessionCounts();updateStudyStats();renderHeader();renderMistakeStats();
+  updateSessionNo();updateSessionCounts();updateStudyStats();updateSessStarBtn();renderHeader();renderMistakeStats();
 };
 
 function sessionAnswer(type){
@@ -1557,7 +1636,7 @@ function sessionAnswer(type){
   sessionCounts[type==='○'?'ok':type==='△'?'tri':'ng']++;
   $('sess-undo-btn').disabled=false;
   $('session-memo').value='';
-  updateSessionNo();updateSessionCounts();updateSessionGoalLabel();updateStudyStats();renderHeader();renderMistakeStats();
+  updateSessionNo();updateSessionCounts();updateSessionGoalLabel();updateStudyStats();updateSessStarBtn();renderHeader();renderMistakeStats();
 }
 
 // recordAnswer は sessionAnswer に統合済み
@@ -1593,6 +1672,7 @@ $('f-book').onchange=()=>renderMistakeList();
 $('f-sort').onchange=()=>renderMistakeList();
 $('review-interval').onchange=()=>{reviewInterval=parseInt($('review-interval').value)||7;stow(RIVK,reviewInterval);renderMistakeList();renderMistakeStats();renderHeader();};
 $('toggle-grad-btn').onclick=()=>{showGrad=!showGrad;$('toggle-grad-btn').textContent=showGrad?'卒業済み非表示':'卒業済み表示';renderMistakeList();};
+$('toggle-star-btn').onclick=()=>{showStarOnly=!showStarOnly;$('toggle-star-btn').style.background=showStarOnly?'rgba(245,200,66,.2)':'';$('toggle-star-btn').style.color=showStarOnly?'var(--warn)':'';renderMistakeList();};
 $('undo-rem-btn').onclick=()=>{
   if(!lastRem)return;
   mistakes=mistakes.map(m=>m.id===lastRem.id?lastRem.prev:m);
@@ -1602,7 +1682,7 @@ $('manual-add-btn').onclick=()=>showManualAddModal();
 
 function renderMistakeList(){
   const sub=$('f-sub').value,book=$('f-book').value,sort=$('f-sort').value;
-  let filtered=mistakes.filter(m=>{if(sub&&m.subject!==sub)return false;if(book&&m.textbook!==book)return false;if(!showGrad&&(m.consecutiveCorrect||0)>=3)return false;return true;});
+  let filtered=mistakes.filter(m=>{if(sub&&m.subject!==sub)return false;if(book&&m.textbook!==book)return false;if(!showGrad&&(m.consecutiveCorrect||0)>=3)return false;if(showStarOnly&&!m.starred)return false;return true;});
   const sortFn=(a,b)=>sort==='miss'?(b.missCount||0)-(a.missCount||0):(b.lastMissed||0)-(a.lastMissed||0);
   const reminders=filtered.filter(needsReview).sort(sortFn);
   const others=filtered.filter(m=>!needsReview(m)).sort(sortFn);
@@ -1635,6 +1715,8 @@ function makeQCard(q,isReminder){
     revBtns.appendChild(el('button',{class:'rev-btn rev-ok',style:{opacity:'.6'},onclick:()=>reviewMistake(q.id,'ok')},['✅']));
     revBtns.appendChild(el('button',{class:'rev-btn rev-ng',style:{opacity:'.6'},onclick:()=>reviewMistake(q.id,'ng')},['＋']));
   }
+  const starBtn=el('button',{class:'rev-btn rev-star'+(q.starred?' starred':''),onclick:()=>{mistakes=mistakes.map(m=>m.id===q.id?{...m,starred:!m.starred}:m);stow(SK,mistakes);syncNow({mistakes});renderMistakeList();}},[q.starred?'⭐':'☆']);
+  revBtns.appendChild(starBtn);
   revBtns.appendChild(el('button',{class:'rev-btn rev-del',onclick:()=>{if(!confirm('削除しますか？'))return;mistakes=mistakes.filter(m=>m.id!==q.id);stow(SK,mistakes);syncNow({mistakes});renderAll();}},['🗑']));
   body.append(pills,memoTA,saveBtn,revBtns);
   head.onclick=()=>{const open=!body.hidden;body.hidden=open;head.querySelector('.chevron').textContent=open?'▼':'▲';};
@@ -1966,10 +2048,11 @@ document.querySelectorAll('.nav-btn').forEach(btn=>{
   btn.onclick=()=>{
     currentTab=btn.dataset.tab;
     document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active',b===btn));
-    ['progress','study','mistake','share'].forEach(t=>$('tab-'+t).hidden=t!==currentTab);
+    ['progress','study','mistake','textbook','share'].forEach(t=>$('tab-'+t).hidden=t!==currentTab);
     if(currentTab==='mistake'){renderMistakeFilters();renderMistakeList();renderMistakeStats();$('review-interval').value=reviewInterval;}
     if(currentTab==='share')renderShare();
     if(currentTab==='study'){renderStudySelects();updateStudyStats();}
+    if(currentTab==='textbook')renderTextbookTab();
   };
 });
 
@@ -1982,5 +2065,6 @@ function renderAll(){
   if(currentTab==='study')renderStudySelects();
   if(currentTab==='mistake'){renderMistakeFilters();renderMistakeList();renderMistakeStats();$('review-interval').value=reviewInterval;}
   if(currentTab==='share')renderShare();
+  if(currentTab==='textbook')renderTextbookTab();
 }
 </script>
