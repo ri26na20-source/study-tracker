@@ -1024,7 +1024,8 @@ function renderProgress(){
 
         // done/total ＋ %
         const pctRow=el('div',{class:'pct-row'});
-        pctRow.appendChild(el('span',{class:'done-lbl'},[`${tb.done||0}/${tb.total}${unit}`]));
+        const doneDisp=tb.pageFrom!=null?`p${(tb.done||0)+tb.pageFrom}/p${tb.pageTo}`:`${tb.done||0}/${tb.total}${unit}`;
+        pctRow.appendChild(el('span',{class:'done-lbl'},[doneDisp]));
         pctRow.appendChild(el('span',{class:'pct-lbl',style:{color:pctColor}},[pct+'%']));
 
         cLeft.append(nameRow,bar,pctRow);
@@ -1153,7 +1154,8 @@ function renderProgressTextbookAxis(){
       bar.appendChild(el('div',{class:'progress-fill',style:{width:pct+'%',background:cellColor}}));
       // done/total + %
       const pr=el('div',{class:'pct-row'});
-      pr.appendChild(el('span',{class:'done-lbl'},[(tb.done||0)+'/'+tb.total+unit]));
+      const doneDisp2=tb.pageFrom!=null?`p${(tb.done||0)+tb.pageFrom}/p${tb.pageTo}`:`${tb.done||0}/${tb.total}${unit}`;
+      pr.appendChild(el('span',{class:'done-lbl'},[doneDisp2]));
       pr.appendChild(el('span',{class:'pct-lbl',style:{color:cellColor}},[pct+'%']));
       cLeft.append(bar,pr);
       if(pct>=100){
@@ -1196,29 +1198,47 @@ function showEditTextbookGoalModal(examId,subjId,tbId){
   // 教材名
   const nameIn=el('input',{class:'input',style:{width:'100%'},placeholder:'教材名'});
   nameIn.value=tb.name;
-  const totalIn=el('input',{class:'input',type:'number',style:{width:'100%'},placeholder:'目標数（問/ページ）',min:'1'});
-  totalIn.value=String(tb.total||'');
-  if(goalLock){totalIn.readOnly=true;totalIn.style.opacity='0.5';totalIn.style.cursor='not-allowed';totalIn.title='設定で目標数ロックが有効です';}
+
+  // ページ範囲UI（既存データを引き継ぎ）
+  const rangeUI=makePageRangeUI(tb.pageFrom??null, tb.pageTo??null, goalLock?null:tb.total);
+  if(goalLock){
+    // ゴールロック時は入力を無効化
+    rangeUI.style.opacity='0.5';rangeUI.style.pointerEvents='none';rangeUI.title='設定で目標数ロックが有効です';
+  }
+
+  // 現在の進捗（ページ範囲モードのときは「現在ページ」として表示）
+  const doneWrap=el('div',{});
+  const doneIn=el('input',{class:'input',type:'number',style:{width:'100%'},min:'0'});
+  // pageFromがあれば「現在ページ」、なければ「進捗数」
+  const doneLabel=tb.pageFrom!=null?`現在のページ（${tb.pageFrom}〜${tb.pageTo}）`:'現在の進捗';
+  doneIn.placeholder=tb.pageFrom!=null?`現在ページ（例：${tb.pageFrom}）`:'現在の進捗数';
+  doneIn.value=tb.pageFrom!=null?String((tb.done||0)+tb.pageFrom):String(tb.done||0);
+  doneWrap.appendChild(doneIn);
+
   const startIn=el('input',{class:'input',type:'date'});
   startIn.value=tb.startDate||today;
   const endIn=el('input',{class:'input',type:'date'});
   endIn.value=tb.endDate||exam.examDate||today;
   const dateRow=el('div',{style:{display:'flex',gap:'8px',alignItems:'center'}});
   dateRow.append(startIn,el('span',{style:{color:'var(--fg3)',fontSize:'12px',flexShrink:'0'}},['→']),endIn);
-  const doneIn=el('input',{class:'input',type:'number',style:{width:'100%'},placeholder:'現在の進捗（問/ページ）',min:'0'});
-  doneIn.value=String(tb.done||0);
+
   const saveBtn=el('button',{class:'btn primary full',onclick:()=>{
     const newName=nameIn.value.trim()||tb.name;
-    const newTotal=goalLock?tb.total:(parseInt(totalIn.value)||0);
-    const newDone=Math.max(0,parseInt(doneIn.value)||0);
-    if(!newTotal){totalIn.focus();return;}
-    updateTextbook(subjId,tbId,t=>({...t,name:newName,total:newTotal,done:Math.min(newDone,newTotal),startDate:startIn.value||today,endDate:endIn.value||''}));
+    const v=goalLock?{total:tb.total,pageFrom:tb.pageFrom??null,pageTo:tb.pageTo??null}:rangeUI.getValue();
+    if(!v&&!goalLock){rangeUI.focusFirst();return;}
+    const rawDone=parseInt(doneIn.value)||0;
+    // ページ範囲モードなら「入力値 - pageFrom」でdoneを計算
+    const newPageFrom=v?.pageFrom??null;
+    const newDoneCalc=newPageFrom!=null?Math.max(0,rawDone-newPageFrom):rawDone;
+    const newTotal=v?.total||tb.total;
+    const newDone=Math.min(Math.max(0,newDoneCalc),newTotal);
+    updateTextbook(subjId,tbId,t=>({...t,name:newName,total:newTotal,pageFrom:v?.pageFrom??null,pageTo:v?.pageTo??null,done:newDone,startDate:startIn.value||today,endDate:endIn.value||''}));
     stow(EXAMSK,exams);syncCloud({exams});closeModal();renderAll();
   }},['保存']);
   modal.append(
     el('div',{class:'field'},[el('label',{},'教材名'),nameIn]),
-    el('div',{class:'field'},[el('label',{},'目標数（問/ページ）'),totalIn]),
-    el('div',{class:'field'},[el('label',{},'現在の進捗'),doneIn]),
+    el('div',{class:'field'},[el('label',{},'範囲・目標'),rangeUI]),
+    el('div',{class:'field'},[el('label',{},doneLabel),doneWrap]),
     el('div',{class:'field'},[el('label',{},'開始日　→　終了日'),dateRow]),
     saveBtn
   );
@@ -1485,44 +1505,118 @@ function showAddSubjectModal(examId){
 // ============================================================
 // ADD TEXTBOOK MODAL
 // ============================================================
+// ページ範囲入力UIを作るヘルパー（追加・設定モーダルで共用）
+function makePageRangeUI(initPageFrom, initPageTo, initTotal){
+  // モード：'range'（ページ範囲）か 'count'（問題数・総数直入力）
+  let mode = (initPageFrom!=null) ? 'range' : 'count';
+
+  const wrap=el('div',{});
+
+  // モード切替タブ
+  const tabs=el('div',{style:{display:'flex',border:'1px solid var(--border)',borderRadius:'8px',overflow:'hidden',marginBottom:'10px'}});
+  const tabRange=el('button',{style:{flex:'1',padding:'7px',fontSize:'12px',fontWeight:'700',border:'none',cursor:'pointer',transition:'all .15s',background:mode==='range'?'var(--accent)':'none',color:mode==='range'?'#fff':'var(--fg3)'}},'ページ範囲');
+  const tabCount=el('button',{style:{flex:'1',padding:'7px',fontSize:'12px',fontWeight:'700',border:'none',cursor:'pointer',transition:'all .15s',background:mode==='count'?'var(--accent)':'none',color:mode==='count'?'#fff':'var(--fg3)'}},'総数で入力');
+  tabs.append(tabRange,tabCount);
+
+  // ページ範囲入力エリア
+  const rangeArea=el('div',{hidden:mode!=='range'});
+  const pageRow=el('div',{style:{display:'flex',gap:'8px',alignItems:'center'}});
+  const pageFromIn=el('input',{class:'input',type:'number',style:{width:'100%'},placeholder:'開始ページ',min:'1'});
+  const pageToIn=el('input',{class:'input',type:'number',style:{width:'100%'},placeholder:'終了ページ',min:'1'});
+  if(initPageFrom!=null) pageFromIn.value=String(initPageFrom);
+  if(initPageTo!=null) pageToIn.value=String(initPageTo);
+  const rangePreview=el('span',{style:{fontSize:'11px',color:'var(--fg3)',whiteSpace:'nowrap',marginTop:'4px',display:'block'}});
+  const updatePreview=()=>{
+    const f=parseInt(pageFromIn.value)||0,t=parseInt(pageToIn.value)||0;
+    rangePreview.textContent=(f>0&&t>=f)?`合計 ${t-f+1} ページ`:(f>0&&t>0&&t<f)?'終了は開始より大きくしてください':'';
+  };
+  pageFromIn.oninput=updatePreview; pageToIn.oninput=updatePreview;
+  pageRow.append(
+    el('div',{style:{flex:'1'}},[el('div',{style:{fontSize:'11px',color:'var(--fg3)',marginBottom:'3px'}},'開始'),pageFromIn]),
+    el('span',{style:{color:'var(--fg3)',fontSize:'14px',flexShrink:'0',paddingTop:'18px'}},'〜'),
+    el('div',{style:{flex:'1'}},[el('div',{style:{fontSize:'11px',color:'var(--fg3)',marginBottom:'3px'}},'終了'),pageToIn])
+  );
+  rangeArea.append(pageRow,rangePreview);
+
+  // 総数直入力エリア
+  const countArea=el('div',{hidden:mode!=='count'});
+  const totalIn=el('input',{class:'input',type:'number',style:{width:'100%'},placeholder:'目標数（問/ページ）',min:'1'});
+  if(initTotal!=null&&mode==='count') totalIn.value=String(initTotal);
+  countArea.appendChild(totalIn);
+
+  // タブ切替
+  tabRange.onclick=()=>{
+    mode='range';
+    tabRange.style.background='var(--accent)';tabRange.style.color='#fff';
+    tabCount.style.background='none';tabCount.style.color='var(--fg3)';
+    rangeArea.hidden=false;countArea.hidden=true;
+  };
+  tabCount.onclick=()=>{
+    mode='count';
+    tabCount.style.background='var(--accent)';tabCount.style.color='#fff';
+    tabRange.style.background='none';tabRange.style.color='var(--fg3)';
+    rangeArea.hidden=true;countArea.hidden=false;
+  };
+
+  wrap.append(tabs,rangeArea,countArea);
+  if(initPageFrom!=null) updatePreview();
+
+  // 値取得関数: { total, pageFrom, pageTo } または null（バリデーションNG）
+  wrap.getValue=()=>{
+    if(mode==='range'){
+      const f=parseInt(pageFromIn.value)||0,t=parseInt(pageToIn.value)||0;
+      if(!f||!t||t<f) return null;
+      return{total:t-f+1, pageFrom:f, pageTo:t};
+    } else {
+      const total=parseInt(totalIn.value)||0;
+      if(!total) return null;
+      return{total, pageFrom:null, pageTo:null};
+    }
+  };
+  wrap.focusFirst=()=>{ mode==='range'?pageFromIn.focus():totalIn.focus(); };
+  return wrap;
+}
+
 function showAddTextbookModal(examId,subjId){
   const exam=exams.find(e=>e.id===examId);
   const subj=exam?.subjects.find(s=>s.id===subjId);
   if(!exam||!subj)return;
   const modal=makeModal('教材追加（'+subj.name+'）');
 
-  // 教材名サジェスト：全試験の全科目の教材名を収集（重複排除）
+  // 教材名サジェスト
   const allTbNames=[...new Set(allTextbooks().map(tb=>tb.name))].sort();
-
-  // 教材名入力 + datalist サジェスト
   const listId='tb-suggest-'+Date.now();
   const datalist=el('datalist',{id:listId});
   allTbNames.forEach(n=>datalist.appendChild(el('option',{value:n},[])));
   const nameIn=el('input',{class:'input',style:{width:'100%'},placeholder:'教材名（例：過去問）',list:listId});
 
-  // 教材名が変わったとき同名教材の目標数を自動引用
-  const totalIn=el('input',{class:'input',type:'number',style:{width:'100%'},placeholder:'目標数（問/ページ）',min:'1'});
-  nameIn.addEventListener('change',()=>{
+  const rangeUI=makePageRangeUI(null,null,null);
+
+  // 同名教材から自動引用
+  const autoFill=()=>{
     const match=allTextbooks().find(tb=>tb.name===nameIn.value.trim());
-    if(match&&!totalIn.value)totalIn.value=String(match.total);
-  });
-  nameIn.addEventListener('blur',()=>{
-    const match=allTextbooks().find(tb=>tb.name===nameIn.value.trim());
-    if(match&&!totalIn.value)totalIn.value=String(match.total);
-  });
+    if(!match)return;
+    // ページ範囲があれば範囲モードへ
+    if(match.pageFrom!=null){
+      document.querySelector&&rangeUI.querySelector&&null; // (タブ切替はユーザーが手動でOK)
+    }
+  };
+  nameIn.addEventListener('change',autoFill);
+  nameIn.addEventListener('blur',autoFill);
 
   const addBtn=el('button',{class:'btn primary full',onclick:()=>{
-    const n=nameIn.value.trim(),total=parseInt(totalIn.value)||0;
+    const n=nameIn.value.trim();
     if(!n){nameIn.focus();return;}
-    if(!total){totalIn.focus();return;}
-    updateExamHeader(examId,ex=>({...ex,subjects:ex.subjects.map(s=>s.id!==subjId?s:{...s,textbooks:[...s.textbooks,{id:Date.now(),name:n,total,done:0,startDate:today,endDate:exam.examDate||'',todayLog:{},archived:false}]})}));
+    const v=rangeUI.getValue();
+    if(!v){rangeUI.focusFirst();return;}
+    updateExamHeader(examId,ex=>({...ex,subjects:ex.subjects.map(s=>s.id!==subjId?s:{...s,textbooks:[...s.textbooks,{id:Date.now(),name:n,total:v.total,pageFrom:v.pageFrom,pageTo:v.pageTo,done:0,startDate:today,endDate:exam.examDate||'',todayLog:{},archived:false}]})}));
     stow(EXAMSK,exams);syncCloud({exams});closeModal();renderAll();
   }},['追加']);
 
   modal.append(
     datalist,
     el('div',{class:'field'},[el('label',{},'教材名'),nameIn]),
-    el('div',{class:'field'},[el('label',{},'目標数（問/ページ）'),totalIn]),
+    el('div',{class:'field'},[el('label',{},'範囲・目標'),rangeUI]),
     addBtn
   );
   openModal(modal);
@@ -2047,7 +2141,7 @@ function renderShare(){
       cLeft2.append(
         el('div',{class:'name',style:{color:st.text}},[tb.name]),
         el('div',{style:{color:'var(--accent)',fontWeight:'700',fontSize:'14px',margin:'4px 0'}},['＋'+tb.todayAdded+unit]),
-        el('div',{style:{color:'var(--fg3)',fontSize:'11px'}},[(tb.done||0)+'/'+tb.total+unit]),
+        el('div',{style:{color:'var(--fg3)',fontSize:'11px'}},[tb.pageFrom!=null?`p${(tb.done||0)+tb.pageFrom}/p${tb.pageTo}`:`${tb.done||0}/${tb.total}${unit}`]),
         el('div',{style:{color:pctColor,fontWeight:'700',fontSize:'13px'}},[pct+'%'])
       );
       if(pct>=100)cLeft2.appendChild(el('div',{style:{fontSize:'16px',marginTop:'4px'}},['🌸']));
