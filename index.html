@@ -1308,16 +1308,14 @@ function renderTextbookTab(){
       });
       subjDiv.appendChild(tbContainer);
 
-      // 教材ドラッグ
+      // 教材ドラッグ（アーカイブ教材は末尾に保持）
+      const archivedTbs=(subj.textbooks||[]).filter(t=>t.archived);
       makeDraggable(tbContainer,()=>tbContainer.querySelectorAll('[data-drag-id]'),(from,to)=>{
         const arr=[...visibleTbs];
         const [moved]=arr.splice(from,1);arr.splice(to,0,moved);
-        // 並び順をexamsに反映
         exams=exams.map(ex=>ex.id!==exam.id?ex:{...ex,subjects:ex.subjects.map(s=>{
           if(s.id!==subj.id)return s;
-          // archivedのものは末尾に保持、並び替えた順で上書き
-          const archived=(s.textbooks||[]).filter(t=>t.archived);
-          return{...s,textbooks:[...arr,...archived]};
+          return{...s,textbooks:[...arr,...archivedTbs]};
         })});
         stow(EXAMSK,exams);syncCloud({exams});renderTextbookTab();renderProgress();
       });
@@ -1325,11 +1323,12 @@ function renderTextbookTab(){
       subjContainer.appendChild(subjDiv);
     });
 
-    // 科目ドラッグ
+    // 科目ドラッグ（アーカイブ科目は末尾に保持）
     makeDraggable(subjContainer,()=>subjContainer.querySelectorAll('[data-drag-id]'),(from,to)=>{
       const arr=[...visibleSubjs];
       const [moved]=arr.splice(from,1);arr.splice(to,0,moved);
-      exams=exams.map(ex=>ex.id!==exam.id?ex:{...ex,subjects:arr});
+      const archivedSubjs=(exam.subjects||[]).filter(s=>s.archived);
+      exams=exams.map(ex=>ex.id!==exam.id?ex:{...ex,subjects:[...arr,...archivedSubjs]});
       stow(EXAMSK,exams);syncCloud({exams});renderTextbookTab();renderProgress();
     });
 
