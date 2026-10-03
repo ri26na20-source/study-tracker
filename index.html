@@ -1530,13 +1530,21 @@ function renderShare(){
 
 $('copy-share-btn').onclick=()=>{
   const lines=['📚 学習記録 '+today];
+  // 登録されている試験すべて（試験日あり・今日以降）を近い順に列挙
   const upcoming=exams.filter(ex=>ex.examDate&&daysBetween(today,ex.examDate)>=0).sort((a,b)=>daysBetween(today,a.examDate)-daysBetween(today,b.examDate));
-  if(upcoming.length){lines.push('📅 '+upcoming[0].name+' まで'+daysBetween(today,upcoming[0].examDate)+'日');}
+  if(upcoming.length){
+    upcoming.forEach(ex=>lines.push('📅 '+ex.name+' まで'+daysBetween(today,ex.examDate)+'日'));
+  }
   const todayTbs=allTextbooks().map(tb=>({...tb,todayAdded:(tb.todayLog&&tb.todayLog[today])||0})).filter(tb=>tb.todayAdded>0);
   if(todayTbs.length){lines.push('');lines.push('【進捗】');todayTbs.forEach(tb=>lines.push(tb.subjectName+' '+tb.name+': +'+tb.todayAdded+bookUnit(tb.name)+' ('+Math.min(100,Math.round((tb.done||0)/tb.total*100))+'%)'));}
   const tm=mistakes.filter(m=>m.addedDate===today).length;
-  if(tm>0)lines.push('');lines.push('【ミス】'+tm+'問');
-  lines.push('🎓 卒業済み: '+mistakes.filter(m=>(m.consecutiveCorrect||0)>=3).length+'問');
+  if(tm>0){lines.push('');lines.push('【ミス】'+tm+'問');}
+  if(dailyGoal>0){
+    const total=todayTbs.reduce((s,tb)=>s+tb.todayAdded,0);
+    const streak=calcGoalStreak();
+    lines.push('');
+    lines.push('【目標】'+total+'/'+dailyGoal+'問'+(streak>=1?' 🔥'+streak+'日連続':''));
+  }
   navigator.clipboard?.writeText(lines.join('\n')).catch(()=>{});
   $('copy-share-btn').textContent='✅ コピーしました';
   setTimeout(()=>$('copy-share-btn').textContent='📋 テキストでコピー',2000);
