@@ -346,11 +346,18 @@ select option{background:var(--bg2);color:var(--fg)}
           <div id="pace-info" style="font-size:12px;color:var(--fg2);flex:1;min-width:120px;text-align:right"></div>
         </div>
         <!-- 正答率バー -->
-        <div id="accuracy-bar" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:8px 12px;margin-bottom:10px;display:flex;align-items:center;gap:8px" hidden>
-          <span style="font-size:12px;color:var(--fg3);white-space:nowrap">正答率</span>
-          <div style="flex:1;height:6px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden"><div id="accuracy-fill" style="height:100%;border-radius:3px;background:var(--ok);transition:width .3s;width:0%"></div></div>
-          <span id="accuracy-label" style="font-size:12px;font-weight:700;color:var(--ok);min-width:36px;text-align:right">0%</span>
-          <span id="accuracy-detail" style="font-size:11px;color:var(--fg3)"></span>
+        <div id="accuracy-bar" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:8px 12px;margin-bottom:10px" hidden>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+            <span style="font-size:12px;color:var(--fg3);white-space:nowrap">正答率</span>
+            <div style="flex:1;height:6px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden"><div id="accuracy-fill" style="height:100%;border-radius:3px;background:var(--ok);transition:width .3s;width:0%"></div></div>
+            <span id="accuracy-label" style="font-size:12px;font-weight:700;color:var(--ok);min-width:36px;text-align:right">0%</span>
+            <span id="accuracy-detail" style="font-size:11px;color:var(--fg3)"></span>
+          </div>
+          <div id="accuracy-okng-row" style="display:flex;gap:10px;justify-content:flex-end">
+            <span style="font-size:11px;color:var(--ok)">○ <span id="acc-ok-pct">0%</span> <span id="acc-ok-n" style="color:var(--fg3)"></span></span>
+            <span style="font-size:11px;color:var(--warn)">△ <span id="acc-tri-pct">0%</span> <span id="acc-tri-n" style="color:var(--fg3)"></span></span>
+            <span style="font-size:11px;color:var(--danger)">✕ <span id="acc-ng-pct">0%</span> <span id="acc-ng-n" style="color:var(--fg3)"></span></span>
+          </div>
         </div>
         <!-- 進捗（done/total + バー）-->
         <div id="pre-progress-bar" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;margin-bottom:12px" hidden>
@@ -671,7 +678,9 @@ async function initApp(user){
   mistakes=load(SK,[]);exams=load(EXAMSK,[]);
   themeColor=load(THEMEK,'dark');reviewInterval=load(RIVK,7);
   const ld=load(DK,{date:'',subCount:{},reviewGoal:0,reviewCount:0});
-  daily=ld.date===today?ld:{date:today,subCount:{},reviewGoal:0,reviewCount:0};
+  daily=ld.date===today?ld:{date:today,subCount:{},bookOk:{},bookTri:{},bookNg:{},reviewGoal:0,reviewCount:0};
+  // 後方互換：既存データにフィールドがない場合
+  daily.bookOk=daily.bookOk||{};daily.bookTri=daily.bookTri||{};daily.bookNg=daily.bookNg||{};
   applyTheme(themeColor);
   renderAll();
   // merge cloud
@@ -1281,9 +1290,10 @@ function renderBookSelect(){
   books.forEach(tb=>bookSel.appendChild(el('option',{value:tb.name},[tb.name])));
   if(books.map(tb=>tb.name).includes(prevBook))bookSel.value=prevBook;
   updateAnswerAreaColor();
+  syncGoalInput();
 }
 $('study-sub').onchange=()=>{renderBookSelect();updatePreProgress();};
-$('study-book').onchange=()=>{updateAnswerAreaColor();updatePreProgress();};
+$('study-book').onchange=()=>{updateAnswerAreaColor();updatePreProgress();syncGoalInput();updateStudyStats();};
 
 function updateAnswerAreaColor(){
   const sub=$('study-sub')?.value;
@@ -1298,71 +1308,114 @@ function updateAnswerAreaColor(){
 function updatePreProgressIfNeeded(){updatePreProgress();}
 
 // 今日の目標・ペース・正答率
-let dailyGoal=parseInt(localStorage.getItem('daily-goal-v1')||'0')||0;
+// bookGoals: {教材名: 目標問数} — 教材ごとに保存
+let bookGoals=JSON.parse(localStorage.getItem('book-goals-v1')||'{}');
+// 後方互換: 旧global goalをデフォルトとして保持（使わない）
+let dailyGoal=0; // 互換用（使われなくなる）
 let displayAxis=localStorage.getItem('display-axis-v1')||'subject'; // 'subject' | 'textbook'
 let goalLock=localStorage.getItem('goal-lock-v1')==='1'; // true=目標数ロック
 
-// 目標連続達成日数の計算
+// 目標連続達成日数の計算（全教材の合計目標 vs 当日合計問数）
 function calcGoalStreak(){
-  if(!dailyGoal)return 0;
+  const totalGoal=Object.values(bookGoals).reduce((a,b)=>a+b,0);
+  if(!totalGoal)return 0;
   const allTbs=allTextbooks();
   let streak=0;
   for(let i=0;i<90;i++){
     const ds=dateStrOffset(i);
     const dayTotal=allTbs.reduce((s,tb)=>s+((tb.todayLog&&tb.todayLog[ds])||0),0);
-    if(dayTotal>=dailyGoal)streak++;
+    if(dayTotal>=totalGoal)streak++;
     else break;
   }
   return streak;
 }
-let todayOk=0,todayTotal=0; // 今日の正答数・総問数
+// todayOk/Total は教材別で管理 — 互換用グローバルは廃止
+// daily.bookOk / daily.bookTri / daily.bookNg : {key: count}
+
+function getBookKey(){
+  const sub=$('study-sub')?.value||'',book=$('study-book')?.value||'';
+  return sub+'___'+book;
+}
+function getBookGoal(){
+  const book=$('study-book')?.value||'';
+  return book?(bookGoals[book]||0):0;
+}
+function getBookStats(){
+  const key=getBookKey();
+  return {
+    ok:(daily.bookOk||{})[key]||0,
+    tri:(daily.bookTri||{})[key]||0,
+    ng:(daily.bookNg||{})[key]||0,
+    total:(daily.subCount||{})[key]||0
+  };
+}
 
 function updateStudyStats(){
-  const total=Object.values(daily.subCount||{}).reduce((a,b)=>a+b,0);
-  $('study-today').textContent='今日 '+total+'問';
-  // ペース計算
-  const goal=dailyGoal;
+  const totalAll=Object.values(daily.subCount||{}).reduce((a,b)=>a+b,0);
+  const bk=getBookStats();
+  const bookTotal=bk.total;
+  $('study-today').textContent='今日 '+totalAll+'問';
+  // ペース計算（教材別目標）
+  const goal=getBookGoal();
   const paceEl=$('pace-info');
-  if(goal>0&&total>0){
-    const now=new Date();
-    const startOfDay=new Date(now.getFullYear(),now.getMonth(),now.getDate(),6,0,0); // 6時スタート想定
-    const elapsed=(now-startOfDay)/1000/60; // 分
-    const rate=total/elapsed; // 問/分
-    const remaining=Math.max(0,goal-total);
-    if(remaining<=0){
+  if(goal>0&&bookTotal>0){
+    if(bookTotal>=goal){
       paceEl.innerHTML='<span style="color:var(--ok);font-weight:700">🎉 今日の目標達成！</span>';
-    }else if(rate>0){
-      const eta=Math.ceil(remaining/rate);
-      const h=Math.floor(eta/60),m=eta%60;
-      const etaStr=h>0?`${h}時間${m}分`:`${m}分`;
-      paceEl.textContent=`${total}/${goal}問 ・ このペースであと ${etaStr}`;
     }else{
-      paceEl.textContent=`${total}/${goal}問`;
+      const sessionDone=sessionActive&&sessionStartTime?sessionCount:0;
+      const elapsed=sessionActive&&sessionStartTime?(Date.now()-sessionStartTime)/1000/60:0;
+      const remaining=Math.max(0,goal-bookTotal);
+      if(sessionDone>=2&&elapsed>0){
+        const rate=sessionDone/elapsed;
+        const eta=Math.ceil(remaining/rate);
+        const h=Math.floor(eta/60),m=eta%60;
+        const etaStr=h>0?`${h}時間${m}分`:`${m}分`;
+        paceEl.textContent=`${bookTotal}/${goal}問 ・ このペースであと ${etaStr}`;
+      }else{
+        paceEl.textContent=`${bookTotal}/${goal}問`;
+      }
     }
   }else if(goal>0){
     paceEl.textContent=`0/${goal}問`;
+  }else if(bookTotal>0){
+    paceEl.textContent=`${bookTotal}問`;
   }else{
     paceEl.textContent='';
   }
-  // 正答率
+  // 正答率（教材別）
   const accBar=$('accuracy-bar');
-  if(todayTotal>0){
+  if(bookTotal>0){
     accBar.hidden=false;
-    const pct=Math.round(todayOk/todayTotal*100);
-    $('accuracy-fill').style.width=pct+'%';
-    $('accuracy-fill').style.background=pct>=80?'var(--ok)':pct>=60?'var(--warn)':'var(--danger)';
-    $('accuracy-label').textContent=pct+'%';
-    $('accuracy-label').style.color=pct>=80?'var(--ok)':pct>=60?'var(--warn)':'var(--danger)';
-    $('accuracy-detail').textContent=`${todayOk}/${todayTotal}問`;
+    const okPct=Math.round(bk.ok/bookTotal*100);
+    const triPct=Math.round(bk.tri/bookTotal*100);
+    const ngPct=Math.round(bk.ng/bookTotal*100);
+    $('accuracy-fill').style.width=okPct+'%';
+    $('accuracy-fill').style.background=okPct>=80?'var(--ok)':okPct>=60?'var(--warn)':'var(--danger)';
+    $('accuracy-label').textContent=okPct+'%';
+    $('accuracy-label').style.color=okPct>=80?'var(--ok)':okPct>=60?'var(--warn)':'var(--danger)';
+    $('accuracy-detail').textContent=`${bk.ok}/${bookTotal}問`;
+    $('acc-ok-pct').textContent=okPct+'%';
+    $('acc-ok-n').textContent=`(${bk.ok})`;
+    $('acc-tri-pct').textContent=triPct+'%';
+    $('acc-tri-n').textContent=`(${bk.tri})`;
+    $('acc-ng-pct').textContent=ngPct+'%';
+    $('acc-ng-n').textContent=`(${bk.ng})`;
   }else{
     accBar.hidden=true;
   }
 }
 
-$('daily-goal-input').value=dailyGoal||'';
+// 教材選択が変わったら目標値を教材別のものに切り替える
+function syncGoalInput(){
+  const book=$('study-book')?.value||'';
+  $('daily-goal-input').value=book?(bookGoals[book]||''):'';
+}
 $('daily-goal-input').addEventListener('input',()=>{
-  dailyGoal=parseInt($('daily-goal-input').value)||0;
-  localStorage.setItem('daily-goal-v1',String(dailyGoal));
+  const book=$('study-book')?.value||'';
+  if(!book)return;
+  const v=parseInt($('daily-goal-input').value)||0;
+  if(v>0)bookGoals[book]=v; else delete bookGoals[book];
+  localStorage.setItem('book-goals-v1',JSON.stringify(bookGoals));
   updateStudyStats();
 });
 
@@ -1372,6 +1425,8 @@ $('daily-goal-input').addEventListener('input',()=>{
 let sessionActive=false;
 let sessionCount=0; // 今のセッションで記録した問数（番号表示用）
 let sessionCounts={ok:0,tri:0,ng:0};
+let sessionStartTime=null; // セッション開始時刻（ペース計算用）
+let sessionStartTotal=0;   // セッション開始時点の今日の累計問数
 let sessionLastAns=null; // undo用
 
 function updatePreProgress(){
@@ -1400,6 +1455,8 @@ function startSession(){
   sessionCount=0;
   sessionCounts={ok:0,tri:0,ng:0};
   sessionLastAns=null;
+  sessionStartTime=Date.now();
+  sessionStartTotal=Object.values(daily.subCount||{}).reduce((a,b)=>a+b,0);
   // チップ・教材名
   const subObj=allSubjects().find(s=>s.name===sub);
   const chip=$('session-sub-chip');
@@ -1458,10 +1515,12 @@ $('sess-undo-btn').onclick=()=>{
       return{...m,missCount:Math.max(0,(m.missCount||0)-(type==='○'?0:1)),consecutiveCorrect:Math.max(0,(m.consecutiveCorrect||0)-(type==='○'?1:0))};
     return m;
   });
-  todayTotal=Math.max(0,todayTotal-1);
-  if(type==='○')todayOk=Math.max(0,todayOk-1);
   const key=sub+'___'+book;
   if(daily.subCount&&daily.subCount[key])daily.subCount[key]=Math.max(0,daily.subCount[key]-1);
+  // 教材別○△×カウンターを戻す
+  const bkField=type==='○'?'bookOk':type==='△'?'bookTri':'bookNg';
+  daily[bkField]=daily[bkField]||{};
+  daily[bkField][key]=Math.max(0,(daily[bkField][key]||0)-1);
   stow(DK,daily);stow(SK,mistakes);syncNow({mistakes});
   // カウンター戻す
   sessionCounts[type==='○'?'ok':type==='△'?'tri':'ng']=Math.max(0,sessionCounts[type==='○'?'ok':type==='△'?'tri':'ng']-1);
@@ -1488,9 +1547,11 @@ function sessionAnswer(type){
   daily.subCount=daily.subCount||{};
   const key=sub+'___'+book;
   daily.subCount[key]=(daily.subCount[key]||0)+1;
+  // 教材別○△×カウンター
+  const bkField2=type==='○'?'bookOk':type==='△'?'bookTri':'bookNg';
+  daily[bkField2]=daily[bkField2]||{};
+  daily[bkField2][key]=(daily[bkField2][key]||0)+1;
   stow(DK,daily);
-  todayTotal++;
-  if(type==='○')todayOk++;
   sessionLastAns={type,pno,sub,book,prevMemo:memo};
   sessionCount++;
   sessionCounts[type==='○'?'ok':type==='△'?'tri':'ng']++;
