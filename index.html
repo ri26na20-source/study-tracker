@@ -175,6 +175,34 @@ select option{background:var(--bg2);color:var(--fg)}
 .ans-ng{background:var(--danger-bg);border-color:rgba(232,83,74,.3);color:var(--danger)}
 .study-foot{display:flex;justify-content:space-between;align-items:center;margin-top:10px}
 
+/* 学習セッションUI */
+#study-pre{}
+#study-session{display:none;flex-direction:column;align-items:stretch}
+#study-session.active{display:flex}
+.session-chip-row{display:flex;align-items:center;gap:6px;margin-bottom:12px}
+.session-sub-chip{display:inline-block;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:700;color:#fff}
+.session-book-name{font-size:13px;color:var(--fg2)}
+.session-no{font-size:clamp(52px,18vw,80px);font-weight:900;line-height:1;color:var(--fg);font-variant-numeric:tabular-nums;letter-spacing:-.02em;margin-bottom:2px}
+.session-no-label{font-size:12px;color:var(--fg3);margin-bottom:16px}
+.session-memo{width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--fg);font-size:14px;resize:none;margin-bottom:14px;font-family:inherit}
+.session-memo:focus{outline:none;border-color:var(--accent)}
+.session-ans-btns{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+.session-ans-btn{border-radius:14px;padding:22px 0;font-size:28px;font-weight:700;border:1px solid;cursor:pointer;transition:opacity .1s;-webkit-tap-highlight-color:transparent}
+.session-ans-btn:active{opacity:.7;transform:scale(.96)}
+.session-ans-ok{background:var(--ok-bg);border-color:rgba(78,202,139,.3);color:var(--ok)}
+.session-ans-tri{background:var(--warn-bg);border-color:rgba(245,200,66,.3);color:var(--warn)}
+.session-ans-ng{background:var(--danger-bg);border-color:rgba(232,83,74,.3);color:var(--danger)}
+.session-foot{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:12px}
+.session-count{display:flex;gap:10px;font-size:13px;font-variant-numeric:tabular-nums}
+.session-count span{font-weight:700}
+.session-count .c-ok{color:var(--ok)}
+.session-count .c-tri{color:var(--warn)}
+.session-count .c-ng{color:var(--danger)}
+.session-end-btn{width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px;font-size:14px;font-weight:700;color:var(--fg2);cursor:pointer}
+.session-end-btn:hover{background:var(--bg3)}
+.start-btn{width:100%;background:var(--accent);color:#fff;border:none;border-radius:12px;padding:14px;font-size:16px;font-weight:700;cursor:pointer;margin-top:4px;letter-spacing:.02em}
+.start-btn:active{opacity:.85}
+
 .mistake-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
 .mstat{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:9px;text-align:center}
 .mstat .val{font-size:18px;font-weight:700;font-variant-numeric:tabular-nums}
@@ -302,41 +330,65 @@ select option{background:var(--bg2);color:var(--fg)}
     </div>
 
     <div id="tab-study" hidden>
-      <div id="study-sub-row">
-        <select id="study-sub" class="input" style="flex:1;min-width:90px"></select>
-        <select id="study-book" class="input" style="flex:2;min-width:120px"></select>
-      </div>
-      <!-- 今日の目標・ペース -->
-      <div id="study-goal-bar" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;margin-bottom:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:130px">
-          <span style="font-size:12px;color:var(--fg3);white-space:nowrap">今日の目標</span>
-          <input type="number" id="daily-goal-input" class="input" style="width:64px;padding:5px 8px;text-align:center" placeholder="0" min="0">
-          <span style="font-size:12px;color:var(--fg3)">問</span>
+      <!-- ▼ スタート前 -->
+      <div id="study-pre">
+        <div id="study-sub-row">
+          <select id="study-sub" class="input" style="flex:1;min-width:90px"></select>
+          <select id="study-book" class="input" style="flex:2;min-width:120px"></select>
         </div>
-        <div id="pace-info" style="font-size:12px;color:var(--fg2);flex:1;min-width:120px;text-align:right"></div>
-      </div>
-      <!-- 正答率バー -->
-      <div id="accuracy-bar" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:8px 12px;margin-bottom:10px;display:flex;align-items:center;gap:8px" hidden>
-        <span style="font-size:12px;color:var(--fg3);white-space:nowrap">正答率</span>
-        <div style="flex:1;height:6px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden"><div id="accuracy-fill" style="height:100%;border-radius:3px;background:var(--ok);transition:width .3s;width:0%"></div></div>
-        <span id="accuracy-label" style="font-size:12px;font-weight:700;color:var(--ok);min-width:36px;text-align:right">0%</span>
-        <span id="accuracy-detail" style="font-size:11px;color:var(--fg3)"></span>
-      </div>
-      <div class="answer-area" id="answer-area" style="border-color:rgba(255,255,255,.1)">
-        <input class="input" id="prob-no" placeholder="問題番号" style="width:100%;margin-bottom:9px">
-        <textarea class="input" id="prob-memo" rows="2" placeholder="メモ（任意）" style="resize:none;width:100%;margin-bottom:0"></textarea>
-        <div class="ans-btns">
-          <button class="ans-btn ans-ok" data-t="○">○</button>
-          <button class="ans-btn ans-tri" data-t="△">△</button>
-          <button class="ans-btn ans-ng" data-t="✕">✕</button>
+        <!-- 今日の目標・ペース -->
+        <div id="study-goal-bar" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;margin-bottom:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:130px">
+            <span style="font-size:12px;color:var(--fg3);white-space:nowrap">今日の目標</span>
+            <input type="number" id="daily-goal-input" class="input" style="width:64px;padding:5px 8px;text-align:center" placeholder="0" min="0">
+            <span style="font-size:12px;color:var(--fg3)">問</span>
+          </div>
+          <div id="pace-info" style="font-size:12px;color:var(--fg2);flex:1;min-width:120px;text-align:right"></div>
+        </div>
+        <!-- 正答率バー -->
+        <div id="accuracy-bar" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:8px 12px;margin-bottom:10px;display:flex;align-items:center;gap:8px" hidden>
+          <span style="font-size:12px;color:var(--fg3);white-space:nowrap">正答率</span>
+          <div style="flex:1;height:6px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden"><div id="accuracy-fill" style="height:100%;border-radius:3px;background:var(--ok);transition:width .3s;width:0%"></div></div>
+          <span id="accuracy-label" style="font-size:12px;font-weight:700;color:var(--ok);min-width:36px;text-align:right">0%</span>
+          <span id="accuracy-detail" style="font-size:11px;color:var(--fg3)"></span>
+        </div>
+        <!-- 進捗（done/total + バー）-->
+        <div id="pre-progress-bar" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;margin-bottom:12px" hidden>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <span id="pre-progress-label" style="font-size:12px;color:var(--fg3)"></span>
+            <span id="pre-progress-pct" style="font-size:13px;font-weight:700"></span>
+          </div>
+          <div style="height:6px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden"><div id="pre-progress-fill" style="height:100%;border-radius:3px;transition:width .3s"></div></div>
+        </div>
+        <button class="start-btn" id="study-start-btn">▶ 学習スタート</button>
+        <div class="study-foot" style="margin-top:10px">
+          <span id="study-today" style="font-size:12px;color:var(--fg3)">今日 0問</span>
         </div>
       </div>
-      <div class="study-foot">
-        <span id="study-today" style="font-size:12px;color:var(--fg3)">今日 0問</span>
-        <div id="undo-area" hidden>
-          <span id="last-ans-label" style="font-size:12px;color:var(--fg3);margin-right:6px"></span>
-          <button class="btn ghost sm" id="undo-btn">↩ 取消</button>
+
+      <!-- ▼ セッション中 -->
+      <div id="study-session">
+        <div class="session-chip-row">
+          <span class="session-sub-chip" id="session-sub-chip"></span>
+          <span class="session-book-name" id="session-book-name"></span>
         </div>
+        <div class="session-no" id="session-no">No.1</div>
+        <div class="session-no-label" id="session-no-label">目標: — 問中</div>
+        <textarea class="session-memo" id="session-memo" rows="2" placeholder="メモ（任意）"></textarea>
+        <div class="session-ans-btns">
+          <button class="session-ans-btn session-ans-ok" id="sess-ok">○</button>
+          <button class="session-ans-btn session-ans-tri" id="sess-tri">△</button>
+          <button class="session-ans-btn session-ans-ng" id="sess-ng">✕</button>
+        </div>
+        <div class="session-foot">
+          <button class="btn ghost sm" id="sess-undo-btn" disabled>↩ 戻る</button>
+          <div class="session-count">
+            <span class="c-ok">○ <span id="sess-cnt-ok">0</span></span>
+            <span class="c-tri">△ <span id="sess-cnt-tri">0</span></span>
+            <span class="c-ng">✕ <span id="sess-cnt-ng">0</span></span>
+          </div>
+        </div>
+        <button class="session-end-btn" id="sess-end-btn">終了</button>
       </div>
     </div>
 
@@ -439,6 +491,22 @@ const el=(tag,attr={},kids=[])=>{const e=document.createElement(tag);Object.entr
 const stow=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch{}};
 const load=(k,d)=>{try{const v=localStorage.getItem(k);return v!=null?JSON.parse(v):d}catch{return d}};
 const todayJST=()=>new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Tokyo'})).toISOString().slice(0,10);
+// dayResetHour: 0〜6の整数。現在時刻がこの時刻未満なら「前日」として扱う
+const _dayResetHour=()=>parseInt(localStorage.getItem('day-reset-hour-v1')||'0')||0;
+const todayWithReset=()=>{
+  const jst=new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Tokyo'}));
+  const h=_dayResetHour();
+  if(h>0&&jst.getHours()<h)jst.setDate(jst.getDate()-1); // リセット時刻前は前日扱い
+  return jst.toISOString().slice(0,10);
+};
+// dateStrWithReset: i日前の日付文字列（ストリーク計算用）
+const dateStrOffset=(daysBack)=>{
+  const jst=new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Tokyo'}));
+  const h=_dayResetHour();
+  if(h>0&&jst.getHours()<h)jst.setDate(jst.getDate()-1);
+  jst.setDate(jst.getDate()-daysBack);
+  return jst.toISOString().slice(0,10);
+};
 const daysBetween=(a,b)=>Math.round((new Date(b)-new Date(a))/86400000);
 const hexRgba=(h,a)=>{const r=parseInt(h.slice(1,3),16),g=parseInt(h.slice(3,5),16),b=parseInt(h.slice(5,7),16);return`rgba(${r},${g},${b},${a})`};
 const bookUnit=name=>/サブ|ノート/.test(name)?'単元':/教科書|テキスト|参考書/.test(name)?'p':'問';
@@ -456,7 +524,7 @@ let showArchived=false,showGrad=false,lastAns=null,lastRem=null;
 let currentTab='progress';
 let currentUser=null;
 let sbTimer=null;
-const today=todayJST();
+const today=todayWithReset();
 
 // helpers to flatten exams for study/mistake selects
 function allSubjects(){const r=[];exams.forEach(ex=>ex.subjects.forEach(s=>r.push({...s,examId:ex.id,examName:ex.name})));return r;}
@@ -1214,16 +1282,20 @@ function renderBookSelect(){
   if(books.map(tb=>tb.name).includes(prevBook))bookSel.value=prevBook;
   updateAnswerAreaColor();
 }
-$('study-sub').onchange=()=>renderBookSelect();
-$('study-book').onchange=()=>updateAnswerAreaColor();
+$('study-sub').onchange=()=>{renderBookSelect();updatePreProgress();};
+$('study-book').onchange=()=>{updateAnswerAreaColor();updatePreProgress();};
 
 function updateAnswerAreaColor(){
-  const sub=$('study-sub').value;
+  const sub=$('study-sub')?.value;
+  if(!sub)return;
   const subObj=allSubjects().find(s=>s.name===sub);
-  const st=subStyle(subObj?.color);
-  const area=$('answer-area');
-  area.style.background=st.bg;area.style.borderColor=st.border;
+  // start-btnに科目色を反映
+  const startBtn=$('study-start-btn');
+  if(startBtn&&subObj?.color)startBtn.style.background=subObj.color;
+  updatePreProgress();
 }
+
+function updatePreProgressIfNeeded(){updatePreProgress();}
 
 // 今日の目標・ペース・正答率
 let dailyGoal=parseInt(localStorage.getItem('daily-goal-v1')||'0')||0;
@@ -1233,12 +1305,10 @@ let goalLock=localStorage.getItem('goal-lock-v1')==='1'; // true=目標数ロッ
 // 目標連続達成日数の計算
 function calcGoalStreak(){
   if(!dailyGoal)return 0;
-  // 過去90日分を遡って連続達成日数を計算
   const allTbs=allTextbooks();
   let streak=0;
   for(let i=0;i<90;i++){
-    const d=new Date();d.setDate(d.getDate()-i);
-    const ds=[d.getFullYear(),(d.getMonth()+1).toString().padStart(2,'0'),d.getDate().toString().padStart(2,'0')].join('-');
+    const ds=dateStrOffset(i);
     const dayTotal=allTbs.reduce((s,tb)=>s+((tb.todayLog&&tb.todayLog[ds])||0),0);
     if(dayTotal>=dailyGoal)streak++;
     else break;
@@ -1296,12 +1366,116 @@ $('daily-goal-input').addEventListener('input',()=>{
   updateStudyStats();
 });
 
-document.querySelectorAll('.ans-btn').forEach(btn=>{btn.onclick=()=>recordAnswer(btn.dataset.t);});
+// ============================================================
+// STUDY SESSION
+// ============================================================
+let sessionActive=false;
+let sessionCount=0; // 今のセッションで記録した問数（番号表示用）
+let sessionCounts={ok:0,tri:0,ng:0};
+let sessionLastAns=null; // undo用
 
-function recordAnswer(type){
-  const pno=$('prob-no').value.trim(),memo=$('prob-memo').value.trim();
-  if(!pno)return;
+function updatePreProgress(){
   const sub=$('study-sub').value,book=$('study-book').value;
+  const tb=activeTextbooks().find(t=>t.subjectName===sub&&t.name===book);
+  const bar=$('pre-progress-bar');
+  if(tb&&tb.total>0){
+    bar.hidden=false;
+    const done=tb.done||0,total=tb.total;
+    const pct=Math.min(100,Math.round(done/total*100));
+    const unit=bookUnit(book);
+    $('pre-progress-label').textContent=`${done}/${total}${unit}`;
+    $('pre-progress-pct').textContent=pct+'%';
+    $('pre-progress-pct').style.color=pct>=80?'var(--ok)':pct>=50?'var(--warn)':'var(--danger)';
+    $('pre-progress-fill').style.width=pct+'%';
+    $('pre-progress-fill').style.background=pct>=80?'var(--ok)':pct>=50?'var(--warn)':'var(--danger)';
+  }else{
+    bar.hidden=true;
+  }
+}
+
+function startSession(){
+  const sub=$('study-sub').value,book=$('study-book').value;
+  if(!sub||!book)return;
+  sessionActive=true;
+  sessionCount=0;
+  sessionCounts={ok:0,tri:0,ng:0};
+  sessionLastAns=null;
+  // チップ・教材名
+  const subObj=allSubjects().find(s=>s.name===sub);
+  const chip=$('session-sub-chip');
+  chip.textContent=sub;
+  chip.style.background=subObj?.color||'var(--accent)';
+  $('session-book-name').textContent=book;
+  updateSessionNo();
+  updateSessionGoalLabel();
+  updateSessionCounts();
+  $('sess-undo-btn').disabled=true;
+  $('session-memo').value='';
+  // 画面切替
+  $('study-pre').style.display='none';
+  $('study-session').classList.add('active');
+}
+
+function updateSessionNo(){
+  $('session-no').textContent='No.'+(sessionCount+1);
+}
+function updateSessionGoalLabel(){
+  const tb=activeTextbooks().find(t=>t.subjectName===$('study-sub').value&&t.name===$('study-book').value);
+  const unit=bookUnit($('study-book').value);
+  if(tb&&tb.total>0){
+    $('session-no-label').textContent=`目標: ${tb.total}${unit}中 ${tb.done||0}完了`;
+  }else{
+    $('session-no-label').textContent='';
+  }
+}
+function updateSessionCounts(){
+  $('sess-cnt-ok').textContent=sessionCounts.ok;
+  $('sess-cnt-tri').textContent=sessionCounts.tri;
+  $('sess-cnt-ng').textContent=sessionCounts.ng;
+}
+
+function endSession(){
+  sessionActive=false;
+  $('study-session').classList.remove('active');
+  $('study-pre').style.display='';
+  updatePreProgress();
+  updateStudyStats();
+}
+
+$('study-start-btn').onclick=()=>startSession();
+$('sess-end-btn').onclick=()=>endSession();
+
+$('sess-ok').onclick=()=>sessionAnswer('○');
+$('sess-tri').onclick=()=>sessionAnswer('△');
+$('sess-ng').onclick=()=>sessionAnswer('✕');
+
+$('sess-undo-btn').onclick=()=>{
+  if(!sessionLastAns)return;
+  const {type,pno,sub,book,prevMemo}=sessionLastAns;
+  // mistakesを戻す
+  mistakes=mistakes.map(m=>{
+    if(m.subject===sub&&m.textbook===book&&m.problemNo===pno)
+      return{...m,missCount:Math.max(0,(m.missCount||0)-(type==='○'?0:1)),consecutiveCorrect:Math.max(0,(m.consecutiveCorrect||0)-(type==='○'?1:0))};
+    return m;
+  });
+  todayTotal=Math.max(0,todayTotal-1);
+  if(type==='○')todayOk=Math.max(0,todayOk-1);
+  const key=sub+'___'+book;
+  if(daily.subCount&&daily.subCount[key])daily.subCount[key]=Math.max(0,daily.subCount[key]-1);
+  stow(DK,daily);stow(SK,mistakes);syncNow({mistakes});
+  // カウンター戻す
+  sessionCounts[type==='○'?'ok':type==='△'?'tri':'ng']=Math.max(0,sessionCounts[type==='○'?'ok':type==='△'?'tri':'ng']-1);
+  sessionCount=Math.max(0,sessionCount-1);
+  sessionLastAns=null;
+  $('sess-undo-btn').disabled=true;
+  $('session-memo').value=prevMemo||'';
+  updateSessionNo();updateSessionCounts();updateStudyStats();renderHeader();renderMistakeStats();
+};
+
+function sessionAnswer(type){
+  const sub=$('study-sub').value,book=$('study-book').value;
+  const pno=String(sessionCount+1);
+  const memo=$('session-memo').value.trim();
   const now=Date.now();
   const existing=mistakes.find(m=>m.subject===sub&&m.textbook===book&&m.problemNo===pno);
   const subObj=allSubjects().find(s=>s.name===sub);
@@ -1315,30 +1489,17 @@ function recordAnswer(type){
   const key=sub+'___'+book;
   daily.subCount[key]=(daily.subCount[key]||0)+1;
   stow(DK,daily);
-  // 正答率カウント
   todayTotal++;
   if(type==='○')todayOk++;
-  lastAns={type,pno,sub,book};
-  $('undo-area').hidden=false;
-  $('last-ans-label').textContent='#'+pno+' '+type;
-  $('prob-no').value='';$('prob-memo').value='';
-  updateStudyStats();
-  renderHeader();renderMistakeStats();
+  sessionLastAns={type,pno,sub,book,prevMemo:memo};
+  sessionCount++;
+  sessionCounts[type==='○'?'ok':type==='△'?'tri':'ng']++;
+  $('sess-undo-btn').disabled=false;
+  $('session-memo').value='';
+  updateSessionNo();updateSessionCounts();updateSessionGoalLabel();updateStudyStats();renderHeader();renderMistakeStats();
 }
 
-$('undo-btn').onclick=()=>{
-  if(!lastAns)return;
-  mistakes=mistakes.map(m=>{if(m.subject===lastAns.sub&&m.textbook===lastAns.book&&m.problemNo===lastAns.pno)return{...m,missCount:Math.max(0,(m.missCount||0)-(lastAns.type==='○'?0:1)),consecutiveCorrect:Math.max(0,(m.consecutiveCorrect||0)-(lastAns.type==='○'?1:0))};return m;});
-  // 正答率undo
-  todayTotal=Math.max(0,todayTotal-1);
-  if(lastAns.type==='○')todayOk=Math.max(0,todayOk-1);
-  // 問題数undo
-  const key=lastAns.sub+'___'+lastAns.book;
-  if(daily.subCount&&daily.subCount[key])daily.subCount[key]=Math.max(0,daily.subCount[key]-1);
-  stow(DK,daily);
-  stow(SK,mistakes);syncNow({mistakes});lastAns=null;$('undo-area').hidden=true;
-  updateStudyStats();renderHeader();renderMistakeStats();
-};
+// recordAnswer は sessionAnswer に統合済み
 
 // ============================================================
 // MISTAKE TAB
@@ -1603,6 +1764,28 @@ function showSettingsModal(){
     row.append(left,sw);
     return row;
   }
+  // 日付変更時刻
+  const resetSection=el('div',{style:{margin:'4px 0 2px'}});
+  resetSection.appendChild(el('div',{style:{fontSize:'11px',color:'var(--fg3)',fontWeight:'700',letterSpacing:'.05em',margin:'8px 0 6px'}},'日付変更の設定'));
+  const resetRow=el('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'6px 0 10px',borderBottom:'1px solid var(--border)'}});
+  const resetLeft=el('div');
+  resetLeft.appendChild(el('div',{style:{fontSize:'13px',color:'var(--fg)',fontWeight:'600',marginBottom:'2px'}},['日付変更時刻']));
+  resetLeft.appendChild(el('div',{style:{fontSize:'11px',color:'var(--fg3)',lineHeight:'1.4'}},['この時刻より前は前日として記録されます']));
+  const resetSel=el('select',{class:'input',style:{width:'90px',flexShrink:'0'}});
+  [['0:00（深夜）','0'],['1:00','1'],['2:00','2'],['3:00','3'],['4:00','4'],['5:00','5'],['6:00（朝）','6']].forEach(([label,val])=>{
+    const opt=el('option',{value:val},[label]);
+    if(val===String(_dayResetHour()))opt.selected=true;
+    resetSel.appendChild(opt);
+  });
+  resetSel.onchange=()=>{
+    localStorage.setItem('day-reset-hour-v1',resetSel.value);
+    // today変数はページリロードで反映される旨を小さく表示
+    resetNote.style.display='';
+  };
+  const resetNote=el('div',{style:{display:'none',fontSize:'11px',color:'var(--warn)',marginTop:'4px'}},['ページを再読み込みすると反映されます']);
+  resetRow.append(resetLeft,resetSel);
+  resetSection.append(resetRow,resetNote);
+
   const axisSection=el('div',{style:{margin:'4px 0 2px'}});
   axisSection.appendChild(el('div',{style:{fontSize:'11px',color:'var(--fg3)',fontWeight:'700',letterSpacing:'.05em',margin:'8px 0 4px'}},'進捗タブの表示'));
   axisSection.appendChild(makeToggleRow(
@@ -1657,7 +1840,7 @@ function showSettingsModal(){
   }},['すべてのデータを削除']);
 
   resetZone.append(resetMistakesBtn,resetExamsBtn,resetAllBtn);
-  modal.append(themeLabel,rivField,axisSection,userInfo,resetZone);
+  modal.append(themeLabel,rivField,resetSection,axisSection,userInfo,resetZone);
   openModal(modal);
 }
 
