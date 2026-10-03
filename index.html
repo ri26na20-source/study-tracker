@@ -47,11 +47,12 @@ select option{background:var(--bg2);color:var(--fg)}
 .hstat.red{color:rgba(232,83,74,.75)}
 .hstat.green{color:rgba(78,202,139,.75)}
 #header-right{display:flex;gap:8px;align-items:center}
-#exam-badge{background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:8px;padding:5px 11px;text-align:center;font-variant-numeric:tabular-nums;line-height:1.25}
-#exam-badge .exam-name{font-size:10px;color:var(--fg2);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px}
-#exam-badge .days-row{display:flex;align-items:baseline;gap:3px;justify-content:center}
-#exam-badge .days{font-size:17px;font-weight:700;color:var(--accent)}
-#exam-badge .label{font-size:10px;color:var(--fg3)}
+#exam-badges-wrap{display:flex;gap:5px;align-items:center;flex-wrap:nowrap;overflow:hidden;max-width:calc(100vw - 180px)}
+.exam-chip{background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:8px;padding:4px 9px;text-align:center;font-variant-numeric:tabular-nums;line-height:1.25;flex-shrink:0}
+.exam-chip .exam-name{font-size:10px;color:var(--fg2);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px}
+.exam-chip .days-row{display:flex;align-items:baseline;gap:2px;justify-content:center}
+.exam-chip .days{font-size:15px;font-weight:700;color:var(--accent)}
+.exam-chip .label{font-size:10px;color:var(--fg3)}
 #menu-btn{width:34px;height:34px;border-radius:8px;background:var(--bg3);color:var(--fg2);font-size:18px;display:flex;align-items:center;justify-content:center}
 
 .card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
@@ -138,7 +139,7 @@ select option{background:var(--bg2);color:var(--fg)}
 .book-label{font-size:13px;font-weight:700;color:var(--fg);padding:8px 10px;background:rgba(255,255,255,.03);border-bottom:1px solid var(--border);border-left:2px solid var(--subj-color,var(--border))}
 
 /* 教材セル */
-.sub-grid{display:grid;gap:8px;padding:10px 10px 12px}
+.sub-grid{display:grid;grid-template-columns:1fr;gap:8px;padding:10px 10px 12px}
 .sub-cell{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:11px 10px;min-width:130px}
 .sub-cell .name{font-size:12px;font-weight:700;margin-bottom:6px;line-height:1.3}
 .sub-cell .pct-row{display:flex;justify-content:space-between;align-items:center;margin-top:4px;margin-bottom:3px}
@@ -282,7 +283,7 @@ select option{background:var(--bg2);color:var(--fg)}
       </div>
     </div>
     <div id="header-right">
-      <div id="exam-badge" hidden><div class="exam-name" id="exam-badge-name"></div><div class="days-row"><span class="label">あと</span><span class="days" id="exam-days">0</span><span class="label">日</span></div></div>
+      <div id="exam-badges-wrap" style="display:none;display:flex;gap:6px;align-items:center;flex-wrap:nowrap;overflow:hidden"></div>
       <button id="menu-btn">⋯</button>
     </div>
   </div>
@@ -293,7 +294,7 @@ select option{background:var(--bg2);color:var(--fg)}
         <button class="btn ghost sm" id="add-exam-btn">＋ 試験追加</button>
         <button class="btn ghost sm" id="toggle-archive-btn">アーカイブ表示</button>
       </div>
-      <div style="font-size:11px;color:var(--fg3);margin-bottom:8px;line-height:1.5">科目名・教材名の横の ↑↓ / ←→ を押すと表示順を入れ替えられます</div>
+      <div style="font-size:11px;color:var(--fg3);margin-bottom:8px;line-height:1.5">科目名・教材名の横の ↑↓ を押すと表示順を入れ替えられます</div>
       <div id="progress-today-bar" style="display:none;margin-bottom:10px"></div>
       <div id="progress-list"></div>
     </div>
@@ -648,14 +649,22 @@ function renderHeader(){
   $('hstat-grad').textContent='🎓 '+graduated;
   $('hstat-rem').textContent='🔔 '+reminders;
   $('hstat-rem').hidden=reminders===0;
-  // show nearest upcoming exam
+  // 試験日が登録されているすべての試験を近い順にバッジ表示
+  const wrap=$('exam-badges-wrap');
+  wrap.innerHTML='';
   const upcoming=exams.filter(ex=>ex.examDate&&daysBetween(today,ex.examDate)>=0).sort((a,b)=>daysBetween(today,a.examDate)-daysBetween(today,b.examDate));
   if(upcoming.length){
-    const dl=daysBetween(today,upcoming[0].examDate);
-    $('exam-days').textContent=dl;
-    $('exam-badge-name').textContent=upcoming[0].name;
-    $('exam-badge').hidden=false;
-  }else{$('exam-badge').hidden=true;}
+    upcoming.forEach(ex=>{
+      const dl=daysBetween(today,ex.examDate);
+      const chip=el('div',{class:'exam-chip'});
+      chip.appendChild(el('div',{class:'exam-name'},[ex.name]));
+      const dr=el('div',{class:'days-row'});
+      dr.append(el('span',{class:'label'},['あと']),el('span',{class:'days'},[String(dl)]),el('span',{class:'label'},['日']));
+      chip.appendChild(dr);
+      wrap.appendChild(chip);
+    });
+    wrap.style.display='flex';
+  }else{wrap.style.display='none';}
 }
 
 // ============================================================
@@ -834,7 +843,7 @@ function renderProgress(){
       }
       const st=subStyle(subj.color);
       const gridWrap=el('div',{style:{overflowX:'auto',paddingBottom:'2px'}});
-      const grid=el('div',{class:'sub-grid',style:{gridTemplateColumns:`repeat(${tbs.length},minmax(138px,1fr))`,minWidth:tbs.length*146+'px'}});
+      const grid=el('div',{class:'sub-grid'});
 
       tbs.forEach((tb,ti)=>{
         const unit=bookUnit(tb.name);
@@ -859,8 +868,8 @@ function renderProgress(){
         const nameRow=el('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'6px'}});
         const nameEl=el('div',{class:'name',style:{color:st.text,cursor:'pointer',flex:'1',lineHeight:'1.3'},title:'目標を編集',onclick:()=>showEditTextbookGoalModal(exam.id,subj.id,tb.id)},[tb.name]);
         const tbSort=el('div',{style:{display:'flex',gap:'1px',marginLeft:'3px',flexShrink:'0'}});
-        if(ti>0)tbSort.appendChild(el('button',{class:'sort-btn',style:{width:'18px',height:'18px',fontSize:'10px'},onclick:e=>{e.stopPropagation();moveTextbook(exam.id,subj.id,tb.id,-1);}},['←']));
-        if(ti<tbs.length-1)tbSort.appendChild(el('button',{class:'sort-btn',style:{width:'18px',height:'18px',fontSize:'10px'},onclick:e=>{e.stopPropagation();moveTextbook(exam.id,subj.id,tb.id,1);}},['→']));
+        if(ti>0)tbSort.appendChild(el('button',{class:'sort-btn',style:{width:'18px',height:'18px',fontSize:'10px'},onclick:e=>{e.stopPropagation();moveTextbook(exam.id,subj.id,tb.id,-1);}},['↑']));
+        if(ti<tbs.length-1)tbSort.appendChild(el('button',{class:'sort-btn',style:{width:'18px',height:'18px',fontSize:'10px'},onclick:e=>{e.stopPropagation();moveTextbook(exam.id,subj.id,tb.id,1);}},['↓']));
         nameRow.append(nameEl,tbSort);
 
         // 進捗バー
@@ -966,7 +975,7 @@ function renderProgressTextbookAxis(){
 
     // 科目セルグリッド
     const gridWrap=el('div',{style:{overflowX:'auto',paddingBottom:'2px'}});
-    const grid=el('div',{class:'sub-grid',style:{gridTemplateColumns:`repeat(${entries.length},minmax(138px,1fr))`,minWidth:entries.length*146+'px'}});
+    const grid=el('div',{class:'sub-grid'});
     entries.forEach(({examId,examName,examColor,examDate,subjId,subjName,subjColor,tb})=>{
       const unit=bookUnit(tb.name);
       const pct=tb.total>0?Math.min(100,Math.round((tb.done||0)/tb.total*100)):0;
@@ -1508,7 +1517,7 @@ function renderShare(){
     const block=el('div',{class:'card book-block',style:{marginBottom:'8px'}});
     block.appendChild(el('div',{class:'book-label'},[subName]));
     const gridWrap=el('div',{style:{overflowX:'auto'}});
-    const grid=el('div',{class:'sub-grid',style:{gridTemplateColumns:`repeat(${tbs.length},minmax(110px,1fr))`,minWidth:tbs.length*118+'px'}});
+    const grid=el('div',{class:'sub-grid'});
     tbs.forEach(tb=>{
       const unit=bookUnit(tb.name);
       const st=subStyle(color);
@@ -1608,7 +1617,35 @@ function showSettingsModal(){
     setTimeout(()=>{pwBtn.textContent='パスワードを変更する';pwBtn.disabled=false;},3000);
   }},['パスワードを変更する']);
   userInfo.appendChild(pwBtn);
-  modal.append(themeLabel,rivField,axisSection,userInfo);
+
+  // データリセットゾーン
+  const resetZone=el('div',{style:{borderTop:'1px solid var(--border)',paddingTop:'14px',marginTop:'14px'}});
+  resetZone.appendChild(el('div',{style:{fontSize:'11px',color:'var(--fg3)',fontWeight:'700',letterSpacing:'.05em',marginBottom:'10px'}},'データリセット'));
+
+  // 間違いノートだけリセット
+  const resetMistakesBtn=el('button',{class:'btn ghost sm full',style:{color:'var(--warn)',borderColor:'rgba(245,200,66,.3)',marginBottom:'8px'},onclick:()=>{
+    if(!confirm('間違いノートのデータをすべて削除しますか？\nこの操作は元に戻せません。'))return;
+    mistakes=[];stow(SK,mistakes);syncCloud({mistakes});closeModal();renderAll();
+  }},['間違いノートをリセット']);
+
+  // 試験・進捗だけリセット（アーカイブ済み含む）
+  const resetExamsBtn=el('button',{class:'btn ghost sm full',style:{color:'var(--warn)',borderColor:'rgba(245,200,66,.3)',marginBottom:'8px'},onclick:()=>{
+    if(!confirm('試験・科目・教材のデータをすべて削除しますか？\nアーカイブ済みの教材も含まれます。\nこの操作は元に戻せません。'))return;
+    exams=[];stow(EXAMSK,exams);syncCloud({exams});closeModal();renderAll();
+  }},['試験・進捗データをリセット（アーカイブ含む）']);
+
+  // 全データリセット
+  const resetAllBtn=el('button',{class:'btn ghost sm full',style:{color:'var(--danger)',borderColor:'rgba(232,83,74,.3)'},onclick:()=>{
+    if(!confirm('すべてのデータを削除しますか？\n・間違いノート\n・試験・科目・教材（アーカイブ含む）\n\nこの操作は元に戻せません。'))return;
+    if(!confirm('本当に削除しますか？（確認）'))return;
+    mistakes=[];exams=[];
+    stow(SK,mistakes);stow(EXAMSK,exams);
+    syncCloud({mistakes,exams});
+    closeModal();renderAll();
+  }},['すべてのデータを削除']);
+
+  resetZone.append(resetMistakesBtn,resetExamsBtn,resetAllBtn);
+  modal.append(themeLabel,rivField,axisSection,userInfo,resetZone);
   openModal(modal);
 }
 
