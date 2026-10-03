@@ -227,6 +227,9 @@ select option{background:var(--bg2);color:var(--fg)}
 .rev-del{background:rgba(255,255,255,.05);color:var(--fg3);font-size:12px;padding:6px 8px;flex:none}
 .rev-star{background:rgba(255,255,255,.05);color:var(--fg3);font-size:13px;padding:6px 8px;flex:none}
 .rev-star.starred{background:rgba(245,200,66,.15);color:var(--warn)}
+.drag-container{outline:none}
+[data-drag-id]{transition:opacity .15s,box-shadow .15s}
+[data-drag-id].drag-over{box-shadow:0 0 0 2px var(--accent),0 4px 12px rgba(0,0,0,.3);opacity:.85}
 
 .share-hero{background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:14px;padding:18px;margin-bottom:14px}
 .share-date{font-size:12px;color:var(--fg2);margin-bottom:6px}
@@ -1183,6 +1186,83 @@ $('add-exam-btn').onclick=()=>showAddExamModal();
 // ============================================================
 // TEXTBOOK TAB — 教材管理
 // ============================================================
+// ── ドラッグ並び替えの共通ロジック ──────────────────────────
+function makeDraggable(container, getItems, onReorder){
+  // items: NodeList of draggable rows
+  let dragSrc=null,dragOver=null,touchItem=null,touchGhost=null,touchOffX=0,touchOffY=0;
+
+  function attachDrag(row){
+    row.setAttribute('draggable','true');
+
+    row.addEventListener('dragstart',e=>{
+      dragSrc=row;row.style.opacity='.4';
+      e.dataTransfer.effectAllowed='move';
+    });
+    row.addEventListener('dragend',()=>{
+      row.style.opacity='';
+      container.querySelectorAll('.drag-over').forEach(el=>el.classList.remove('drag-over'));
+      dragSrc=null;dragOver=null;
+    });
+    row.addEventListener('dragenter',e=>{
+      if(row===dragSrc)return;
+      container.querySelectorAll('.drag-over').forEach(el=>el.classList.remove('drag-over'));
+      row.classList.add('drag-over');dragOver=row;
+    });
+    row.addEventListener('dragover',e=>{e.preventDefault();e.dataTransfer.dropEffect='move';});
+    row.addEventListener('drop',e=>{
+      e.preventDefault();
+      if(!dragSrc||dragSrc===row)return;
+      const items=[...container.querySelectorAll('[data-drag-id]')];
+      const fromIdx=items.indexOf(dragSrc);
+      const toIdx=items.indexOf(row);
+      if(fromIdx<0||toIdx<0||fromIdx===toIdx)return;
+      onReorder(fromIdx,toIdx);
+    });
+
+    // タッチ
+    row.addEventListener('touchstart',e=>{
+      const touch=e.touches[0];
+      touchItem=row;
+      const rect=row.getBoundingClientRect();
+      touchOffX=touch.clientX-rect.left;touchOffY=touch.clientY-rect.top;
+      touchGhost=row.cloneNode(true);
+      touchGhost.style.cssText=`position:fixed;left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;opacity:.7;pointer-events:none;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,.4);border-radius:10px;background:var(--bg2)`;
+      document.body.appendChild(touchGhost);
+      row.style.opacity='.3';
+    },{passive:true});
+    row.addEventListener('touchmove',e=>{
+      if(!touchItem||!touchGhost)return;
+      e.preventDefault();
+      const touch=e.touches[0];
+      touchGhost.style.left=(touch.clientX-touchOffX)+'px';
+      touchGhost.style.top=(touch.clientY-touchOffY)+'px';
+      // どの行の上にいるか
+      touchGhost.style.display='none';
+      const el2=document.elementFromPoint(touch.clientX,touch.clientY);
+      touchGhost.style.display='';
+      const target=el2?.closest('[data-drag-id]');
+      container.querySelectorAll('.drag-over').forEach(el=>el.classList.remove('drag-over'));
+      if(target&&target!==touchItem){target.classList.add('drag-over');dragOver=target;}
+    },{passive:false});
+    row.addEventListener('touchend',()=>{
+      if(!touchItem)return;
+      if(touchGhost){document.body.removeChild(touchGhost);touchGhost=null;}
+      touchItem.style.opacity='';
+      container.querySelectorAll('.drag-over').forEach(el=>el.classList.remove('drag-over'));
+      if(dragOver&&dragOver!==touchItem){
+        const items=[...container.querySelectorAll('[data-drag-id]')];
+        const fromIdx=items.indexOf(touchItem);
+        const toIdx=items.indexOf(dragOver);
+        if(fromIdx>=0&&toIdx>=0&&fromIdx!==toIdx)onReorder(fromIdx,toIdx);
+      }
+      touchItem=null;dragOver=null;
+    });
+  }
+
+  // 全行にアタッチ
+  container.querySelectorAll('[data-drag-id]').forEach(attachDrag);
+}
+
 function renderTextbookTab(){
   const list=$('textbook-list');list.innerHTML='';
   exams.forEach(exam=>{
@@ -1195,27 +1275,63 @@ function renderTextbookTab(){
     examBtns.appendChild(el('button',{class:'btn ghost sm',onclick:()=>showEditExamModal(exam.id)},['編集']));
     examHead.appendChild(examBtns);
     examDiv.appendChild(examHead);
-    exam.subjects?.forEach(subj=>{
-      if(!showArchived&&subj.archived)return;
-      const subjDiv=el('div',{style:{background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:'10px',padding:'10px 12px',marginBottom:'8px'}});
+
+    // ── 科目ドラッグコンテナ ──
+    const subjContainer=el('div',{class:'drag-container'});
+    const visibleSubjs=(exam.subjects||[]).filter(s=>showArchived||!s.archived);
+    visibleSubjs.forEach((subj,si)=>{
       const subStyle2=subStyle(subj.color);
-      const subjHead=el('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'8px'}});
+      const subjDiv=el('div',{'data-drag-id':subj.id,style:{background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:'10px',padding:'10px 12px',marginBottom:'8px',cursor:'grab',userSelect:'none',transition:'opacity .15s,box-shadow .15s'}});
+
+      const subjHead=el('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'6px'}});
       const subjLeft=el('div',{style:{display:'flex',alignItems:'center',gap:'8px'}});
+      // ドラッグハンドル
+      subjLeft.appendChild(el('span',{style:{color:'var(--fg3)',fontSize:'14px',cursor:'grab',marginRight:'2px',flexShrink:'0'}},['⠿']));
       subjLeft.appendChild(el('span',{style:{width:'10px',height:'10px',borderRadius:'50%',background:subj.color,display:'inline-block',flexShrink:'0'}}));
       subjLeft.appendChild(el('span',{style:{fontWeight:'700',fontSize:'13px',color:subStyle2.text}},[subj.name]));
       subjHead.appendChild(subjLeft);
-      subjHead.appendChild(el('button',{class:'btn ghost sm',onclick:()=>showAddTextbookModal(exam.id,subj.id)},['＋教材']));
+      subjHead.appendChild(el('button',{class:'btn ghost sm',onclick:(e)=>{e.stopPropagation();showAddTextbookModal(exam.id,subj.id);}},['＋教材']));
       subjDiv.appendChild(subjHead);
-      subj.textbooks?.forEach(tb=>{
-        if(!showArchived&&tb.archived)return;
-        const row=el('div',{style:{display:'flex',alignItems:'center',gap:'8px',padding:'6px 0',borderTop:'1px solid var(--border)'}});
+
+      // ── 教材ドラッグコンテナ ──
+      const tbContainer=el('div',{class:'drag-container'});
+      const visibleTbs=(subj.textbooks||[]).filter(t=>showArchived||!t.archived);
+      visibleTbs.forEach((tb,ti)=>{
+        const row=el('div',{'data-drag-id':tb.id,style:{display:'flex',alignItems:'center',gap:'8px',padding:'7px 4px',borderTop:'1px solid var(--border)',cursor:'grab',userSelect:'none',borderRadius:'6px',transition:'background .1s'}});
+        row.appendChild(el('span',{style:{color:'var(--fg3)',fontSize:'13px',flexShrink:'0'}},['⠿']));
         row.appendChild(el('span',{style:{flex:'1',fontSize:'13px',color:'var(--fg)'}},[tb.name]));
         if(tb.total>0)row.appendChild(el('span',{style:{fontSize:'11px',color:'var(--fg3)'}},[`${tb.done||0}/${tb.total}`]));
-        row.appendChild(el('button',{class:'btn ghost sm',style:{fontSize:'11px',padding:'3px 8px'},onclick:()=>showEditTextbookGoalModal(exam.id,subj.id,tb.id)},['設定']));
-        subjDiv.appendChild(row);
+        row.appendChild(el('button',{class:'btn ghost sm',style:{fontSize:'11px',padding:'3px 8px'},onclick:(e)=>{e.stopPropagation();showEditTextbookGoalModal(exam.id,subj.id,tb.id);}},['設定']));
+        tbContainer.appendChild(row);
       });
-      examDiv.appendChild(subjDiv);
+      subjDiv.appendChild(tbContainer);
+
+      // 教材ドラッグ
+      makeDraggable(tbContainer,()=>tbContainer.querySelectorAll('[data-drag-id]'),(from,to)=>{
+        const arr=[...visibleTbs];
+        const [moved]=arr.splice(from,1);arr.splice(to,0,moved);
+        // 並び順をexamsに反映
+        exams=exams.map(ex=>ex.id!==exam.id?ex:{...ex,subjects:ex.subjects.map(s=>{
+          if(s.id!==subj.id)return s;
+          // archivedのものは末尾に保持、並び替えた順で上書き
+          const archived=(s.textbooks||[]).filter(t=>t.archived);
+          return{...s,textbooks:[...arr,...archived]};
+        })});
+        stow(EXAMSK,exams);syncCloud({exams});renderTextbookTab();renderProgress();
+      });
+
+      subjContainer.appendChild(subjDiv);
     });
+
+    // 科目ドラッグ
+    makeDraggable(subjContainer,()=>subjContainer.querySelectorAll('[data-drag-id]'),(from,to)=>{
+      const arr=[...visibleSubjs];
+      const [moved]=arr.splice(from,1);arr.splice(to,0,moved);
+      exams=exams.map(ex=>ex.id!==exam.id?ex:{...ex,subjects:arr});
+      stow(EXAMSK,exams);syncCloud({exams});renderTextbookTab();renderProgress();
+    });
+
+    examDiv.appendChild(subjContainer);
     list.appendChild(examDiv);
   });
   if(exams.length===0)list.innerHTML='<div class="empty-msg">試験がありません。「＋ 試験追加」から追加してください。</div>';
