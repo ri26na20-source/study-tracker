@@ -140,19 +140,21 @@ select option{background:var(--bg2);color:var(--fg)}
 
 /* 教材セル */
 .sub-grid{display:grid;grid-template-columns:1fr;gap:8px;padding:10px 10px 12px}
-.sub-cell{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:11px 10px;min-width:130px}
+.sub-cell{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:10px 10px;display:flex;flex-direction:row;align-items:stretch;gap:0}
+.sub-cell .cell-left{flex:1;min-width:0;display:flex;flex-direction:column;gap:0}
+.sub-cell .cell-right{display:flex;flex-direction:column;align-items:stretch;justify-content:center;gap:4px;padding-left:10px;margin-left:10px;border-left:1px solid rgba(255,255,255,.08);flex-shrink:0}
 .sub-cell .name{font-size:12px;font-weight:700;margin-bottom:6px;line-height:1.3}
 .sub-cell .pct-row{display:flex;justify-content:space-between;align-items:center;margin-top:4px;margin-bottom:3px}
 .sub-cell .done-lbl{font-size:11px;color:var(--fg3);font-variant-numeric:tabular-nums}
 .sub-cell .pct-lbl{font-size:13px;font-weight:700;font-variant-numeric:tabular-nums}
-.cell-badges{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.cell-badges{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}
 .cbadge{display:inline-flex;align-items:center;gap:2px;padding:3px 7px;border-radius:6px;font-size:11px;font-weight:700;border:1px solid}
 .cbadge.behind{background:rgba(232,83,74,.15);color:var(--danger);border-color:rgba(232,83,74,.3)}
 .cbadge.delay{background:rgba(232,83,74,.15);color:var(--danger);border-color:rgba(232,83,74,.3)}
 .cbadge.pace{background:rgba(245,200,66,.1);color:var(--warn);border-color:rgba(245,200,66,.25)}
 .cbadge.today{background:rgba(78,202,139,.1);color:var(--ok);border-color:rgba(78,202,139,.2)}
-.delta-row{display:flex;gap:3px;margin-top:8px}
-.delta-btn{flex:1;background:rgba(255,255,255,.07);color:var(--fg2);border-radius:6px;padding:5px 0;font-size:12px;font-weight:700;border:none;cursor:pointer}
+.delta-col{display:grid;grid-template-columns:1fr 1fr;gap:3px;width:72px}
+.delta-btn{background:rgba(255,255,255,.07);color:var(--fg2);border-radius:6px;padding:6px 0;font-size:12px;font-weight:700;border:none;cursor:pointer;text-align:center}
 .delta-btn:hover{background:rgba(255,255,255,.12)}
 .delta-btn:active{background:rgba(255,255,255,.18)}
 .delta-btn.minus{color:var(--danger);background:rgba(232,83,74,.1)}
@@ -863,8 +865,10 @@ function renderProgress(){
 
         const pctColor=pct>=80?st.text:pct>=50?'var(--warn)':'var(--danger)';
         const cell=el('div',{class:'sub-cell',style:{background:st.bg,borderColor:st.border}});
+        const cLeft=el('div',{class:'cell-left'});
+        const cRight=el('div',{class:'cell-right'});
 
-        // 教材名＋ソートボタン
+        // 教材名＋ソートボタン（左エリア）
         const nameRow=el('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'6px'}});
         const nameEl=el('div',{class:'name',style:{color:st.text,cursor:'pointer',flex:'1',lineHeight:'1.3'},title:'目標を編集',onclick:()=>showEditTextbookGoalModal(exam.id,subj.id,tb.id)},[tb.name]);
         const tbSort=el('div',{style:{display:'flex',gap:'1px',marginLeft:'3px',flexShrink:'0'}});
@@ -881,10 +885,11 @@ function renderProgress(){
         pctRow.appendChild(el('span',{class:'done-lbl'},[`${tb.done||0}/${tb.total}${unit}`]));
         pctRow.appendChild(el('span',{class:'pct-lbl',style:{color:pctColor}},[pct+'%']));
 
-        cell.append(nameRow,bar,pctRow);
+        cLeft.append(nameRow,bar,pctRow);
 
         if(pct>=100){
-          cell.appendChild(el('button',{class:'archive-btn-mini',onclick:()=>archiveTextbook(exam.id,subj.id,tb.id)},['🌸 完了']));
+          cLeft.appendChild(el('button',{class:'archive-btn-mini',onclick:()=>archiveTextbook(exam.id,subj.id,tb.id)},['🌸 完了']));
+          cell.appendChild(cLeft);
         } else {
           // バッジ行（遅れ・赤・目安ペース）
           const badgeRow=el('div',{class:'cell-badges'});
@@ -892,17 +897,17 @@ function renderProgress(){
           if(delayDays>0)badgeRow.appendChild(el('span',{class:'cbadge delay'},['🕐 '+delayDays+'日遅れ']));
           if(surplus>0)badgeRow.appendChild(el('span',{class:'cbadge pace'},[surplus+unit+'/日']));
           if(todayAdded>0)badgeRow.appendChild(el('span',{class:'cbadge today'},['今日+'+todayAdded]));
-          if(badgeRow.children.length)cell.appendChild(badgeRow);
+          if(badgeRow.children.length)cLeft.appendChild(badgeRow);
 
-          // ±ボタン
-          const dRow=el('div',{class:'delta-row'});
+          // ±ボタン（右エリア 2×2グリッド）
+          const dCol=el('div',{class:'delta-col'});
           [-1,1,5,10].forEach(d=>{
-            const btn=el('button',{class:'delta-btn'+(d<0?' minus':''),onclick:()=>updTextbook(exam.id,subj.id,tb.id,d)},[(d>0?'+':'')+d]);
-            dRow.appendChild(btn);
+            dCol.appendChild(el('button',{class:'delta-btn'+(d<0?' minus':''),onclick:()=>updTextbook(exam.id,subj.id,tb.id,d)},[(d>0?'+':'')+d]));
           });
-          cell.appendChild(dRow);
+          cRight.appendChild(dCol);
 
-          if(tb.archived)cell.appendChild(el('button',{class:'archive-btn-mini',style:{background:'rgba(255,255,255,.04)',color:'var(--fg3)',borderColor:'var(--border)'},onclick:()=>restoreTextbook(exam.id,subj.id,tb.id)},['復元']));
+          if(tb.archived)cLeft.appendChild(el('button',{class:'archive-btn-mini',style:{background:'rgba(255,255,255,.04)',color:'var(--fg3)',borderColor:'var(--border)'},onclick:()=>restoreTextbook(exam.id,subj.id,tb.id)},['復元']));
+          cell.append(cLeft,cRight);
         }
         grid.appendChild(cell);
       });
@@ -993,11 +998,13 @@ function renderProgressTextbookAxis(){
       const cellColor=pct>=80?st.text:pct>=50?'var(--warn)':'var(--danger)';
 
       const cell=el('div',{class:'sub-cell',style:{background:st.bg,borderColor:st.border}});
-      // 科目名＋試験名
+      const cLeft=el('div',{class:'cell-left'});
+      const cRight=el('div',{class:'cell-right'});
+      // 科目名＋試験名（左エリア）
       const hd=el('div',{style:{marginBottom:'5px'}});
       hd.appendChild(el('div',{style:{fontSize:'12px',fontWeight:'700',color:st.text,lineHeight:'1.3',cursor:'pointer'},onclick:()=>showEditTextbookGoalModal(examId,subjId,tb.id)},[subjName]));
       hd.appendChild(el('div',{style:{fontSize:'10px',color:'var(--fg3)',marginTop:'1px'}},[examName]));
-      cell.appendChild(hd);
+      cLeft.appendChild(hd);
       // バー
       const bar=el('div',{class:'progress-bar',style:{height:'5px'}});
       bar.appendChild(el('div',{class:'progress-fill',style:{width:pct+'%',background:cellColor}}));
@@ -1005,18 +1012,21 @@ function renderProgressTextbookAxis(){
       const pr=el('div',{class:'pct-row'});
       pr.appendChild(el('span',{class:'done-lbl'},[(tb.done||0)+'/'+tb.total+unit]));
       pr.appendChild(el('span',{class:'pct-lbl',style:{color:cellColor}},[pct+'%']));
-      cell.append(bar,pr);
+      cLeft.append(bar,pr);
       if(pct>=100){
-        cell.appendChild(el('button',{class:'archive-btn-mini',onclick:()=>archiveTextbook(examId,subjId,tb.id)},['🌸 完了']));
+        cLeft.appendChild(el('button',{class:'archive-btn-mini',onclick:()=>archiveTextbook(examId,subjId,tb.id)},['🌸 完了']));
+        cell.appendChild(cLeft);
       } else {
         const badgeRow=el('div',{class:'cell-badges'});
         if(gap<0)badgeRow.appendChild(el('span',{class:'cbadge behind'},['赤'+Math.abs(gap)+unit]));
         if(surplus>0)badgeRow.appendChild(el('span',{class:'cbadge pace'},[surplus+unit+'/日']));
         if(todayAdded>0)badgeRow.appendChild(el('span',{class:'cbadge today'},['今日+'+todayAdded]));
-        if(badgeRow.children.length)cell.appendChild(badgeRow);
-        const dRow=el('div',{class:'delta-row'});
-        [-1,1,5,10].forEach(d=>{dRow.appendChild(el('button',{class:'delta-btn'+(d<0?' minus':''),onclick:()=>updTextbook(examId,subjId,tb.id,d)},[(d>0?'+':'')+d]));});
-        cell.appendChild(dRow);
+        if(badgeRow.children.length)cLeft.appendChild(badgeRow);
+        // ±ボタン（右エリア 2×2グリッド）
+        const dCol=el('div',{class:'delta-col'});
+        [-1,1,5,10].forEach(d=>{dCol.appendChild(el('button',{class:'delta-btn'+(d<0?' minus':''),onclick:()=>updTextbook(examId,subjId,tb.id,d)},[(d>0?'+':'')+d]));});
+        cRight.appendChild(dCol);
+        cell.append(cLeft,cRight);
       }
       grid.appendChild(cell);
     });
@@ -1523,14 +1533,16 @@ function renderShare(){
       const st=subStyle(color);
       const pct=tb.total>0?Math.min(100,Math.round((tb.done||0)/tb.total*100)):0;
       const pctColor=pct>=100?'var(--ok)':pct>=50?st.text:'var(--warn)';
-      const cell=el('div',{class:'sub-cell',style:{background:st.bg,borderColor:st.border,textAlign:'center'}});
-      cell.append(
+      const cell=el('div',{class:'sub-cell',style:{background:st.bg,borderColor:st.border}});
+      const cLeft2=el('div',{class:'cell-left'});
+      cLeft2.append(
         el('div',{class:'name',style:{color:st.text}},[tb.name]),
         el('div',{style:{color:'var(--accent)',fontWeight:'700',fontSize:'14px',margin:'4px 0'}},['＋'+tb.todayAdded+unit]),
         el('div',{style:{color:'var(--fg3)',fontSize:'11px'}},[(tb.done||0)+'/'+tb.total+unit]),
         el('div',{style:{color:pctColor,fontWeight:'700',fontSize:'13px'}},[pct+'%'])
       );
-      if(pct>=100)cell.appendChild(el('div',{style:{fontSize:'16px',marginTop:'4px'}},['🌸']));
+      if(pct>=100)cLeft2.appendChild(el('div',{style:{fontSize:'16px',marginTop:'4px'}},['🌸']));
+      cell.appendChild(cLeft2);
       grid.appendChild(cell);
     });
     gridWrap.appendChild(grid);block.appendChild(gridWrap);booksDiv.appendChild(block);
