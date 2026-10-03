@@ -288,6 +288,18 @@ select option{background:var(--bg2);color:var(--fg)}
           <button style="font-size:12px;color:var(--fg3);background:none;border:none;cursor:pointer" id="auth-forgot-btn">パスワードを忘れた場合</button>
         </div>
       </div>
+      <!-- 新パスワード設定画面（リセットリンクから戻ってきたとき） -->
+      <div id="auth-newpass-view" hidden>
+        <div style="text-align:center;margin-bottom:16px">
+          <div style="font-size:20px;margin-bottom:6px">🔑</div>
+          <div style="font-weight:700;margin-bottom:4px">新しいパスワードを設定</div>
+          <div style="font-size:12px;color:var(--fg3)">新しいパスワードを入力してください</div>
+        </div>
+        <div class="field"><label>新しいパスワード</label><input class="input" id="newpass-input" type="password" placeholder="6文字以上" autocomplete="new-password"></div>
+        <div class="field"><label>パスワード（確認）</label><input class="input" id="newpass-input2" type="password" placeholder="もう一度入力" autocomplete="new-password"></div>
+        <div id="newpass-msg" style="font-size:12px;margin-bottom:10px;text-align:center;color:var(--danger)"></div>
+        <button class="btn primary full" id="newpass-submit-btn">パスワードを更新</button>
+      </div>
       <!-- パスワードリセット画面 -->
       <div id="auth-reset-view" hidden>
         <div style="text-align:center;margin-bottom:16px">
@@ -716,6 +728,16 @@ async function initApp(user){
 // ============================================================
 sb.auth.onAuthStateChange(async(event,session)=>{
   $('auth-loading').hidden=true;
+  if(event==='PASSWORD_RECOVERY'){
+    // パスワードリセットリンクから戻ってきた → 新パスワード設定画面を表示
+    $('app').hidden=true;
+    $('auth-screen').hidden=false;
+    $('auth-form').hidden=false;
+    $('auth-main-view').hidden=true;
+    $('auth-reset-view').hidden=true;
+    $('auth-newpass-view').hidden=false;
+    return;
+  }
   if(session?.user){
     $('auth-form').hidden=true;
     await initApp(session.user);
@@ -726,6 +748,32 @@ sb.auth.onAuthStateChange(async(event,session)=>{
     $('auth-form').hidden=false;
   }
 });
+
+// 新パスワード設定ボタン
+$('newpass-submit-btn').onclick=async()=>{
+  const p=$('newpass-input').value;
+  const p2=$('newpass-input2').value;
+  const msg=$('newpass-msg');
+  msg.textContent='';
+  if(p.length<6){msg.textContent='6文字以上で入力してください';return;}
+  if(p!==p2){msg.textContent='パスワードが一致しません';return;}
+  $('newpass-submit-btn').disabled=true;
+  $('newpass-submit-btn').textContent='更新中...';
+  const{error}=await sb.auth.updateUser({password:p});
+  $('newpass-submit-btn').disabled=false;
+  $('newpass-submit-btn').textContent='パスワードを更新';
+  if(error){msg.textContent='エラー: '+error.message;}
+  else{
+    msg.style.color='var(--ok)';
+    msg.textContent='パスワードを更新しました。ログインしてください。';
+    await sb.auth.signOut();
+    setTimeout(()=>{
+      $('auth-newpass-view').hidden=true;
+      $('auth-main-view').hidden=false;
+      msg.textContent='';msg.style.color='var(--danger)';
+    },1500);
+  }
+};
 
 // ============================================================
 // LOGOUT
@@ -1144,7 +1192,10 @@ function showEditTextbookGoalModal(examId,subjId,tbId){
   const subj=exam?.subjects.find(s=>s.id===subjId);
   const tb=subj?.textbooks.find(t=>t.id===tbId);
   if(!exam||!subj||!tb)return;
-  const modal=makeModal('目標編集（'+tb.name+'）');
+  const modal=makeModal('教材設定（'+tb.name+'）');
+  // 教材名
+  const nameIn=el('input',{class:'input',style:{width:'100%'},placeholder:'教材名'});
+  nameIn.value=tb.name;
   const totalIn=el('input',{class:'input',type:'number',style:{width:'100%'},placeholder:'目標数（問/ページ）',min:'1'});
   totalIn.value=String(tb.total||'');
   if(goalLock){totalIn.readOnly=true;totalIn.style.opacity='0.5';totalIn.style.cursor='not-allowed';totalIn.title='設定で目標数ロックが有効です';}
@@ -1154,31 +1205,65 @@ function showEditTextbookGoalModal(examId,subjId,tbId){
   endIn.value=tb.endDate||exam.examDate||today;
   const dateRow=el('div',{style:{display:'flex',gap:'8px',alignItems:'center'}});
   dateRow.append(startIn,el('span',{style:{color:'var(--fg3)',fontSize:'12px',flexShrink:'0'}},['→']),endIn);
-  // 現在の進捗もリセットするかどうか
-  const doneRow=el('div',{style:{display:'flex',gap:'8px',alignItems:'center',marginTop:'4px'}});
   const doneIn=el('input',{class:'input',type:'number',style:{width:'100%'},placeholder:'現在の進捗（問/ページ）',min:'0'});
   doneIn.value=String(tb.done||0);
-  doneRow.appendChild(doneIn);
   const saveBtn=el('button',{class:'btn primary full',onclick:()=>{
+    const newName=nameIn.value.trim()||tb.name;
     const newTotal=goalLock?tb.total:(parseInt(totalIn.value)||0);
     const newDone=Math.max(0,parseInt(doneIn.value)||0);
     if(!newTotal){totalIn.focus();return;}
-    updateTextbook(subjId,tbId,t=>({...t,total:newTotal,done:Math.min(newDone,newTotal),startDate:startIn.value||today,endDate:endIn.value||''}));
+    updateTextbook(subjId,tbId,t=>({...t,name:newName,total:newTotal,done:Math.min(newDone,newTotal),startDate:startIn.value||today,endDate:endIn.value||''}));
     stow(EXAMSK,exams);syncCloud({exams});closeModal();renderAll();
   }},['保存']);
   modal.append(
+    el('div',{class:'field'},[el('label',{},'教材名'),nameIn]),
     el('div',{class:'field'},[el('label',{},'目標数（問/ページ）'),totalIn]),
-    el('div',{class:'field'},[el('label',{},'現在の進捗'),doneRow]),
+    el('div',{class:'field'},[el('label',{},'現在の進捗'),doneIn]),
     el('div',{class:'field'},[el('label',{},'開始日　→　終了日'),dateRow]),
     saveBtn
   );
-  // ちょっとだけ危険ゾーン：教材削除
   const delBtn=el('button',{class:'btn ghost full',style:{marginTop:'8px',color:'var(--danger)',borderColor:'var(--danger)',fontSize:'12px'},onclick:()=>{
     if(!confirm(tb.name+'を削除しますか？記録も消えます'))return;
     updateExamHeader(examId,ex=>({...ex,subjects:ex.subjects.map(s=>s.id!==subjId?s:{...s,textbooks:s.textbooks.filter(t=>t.id!==tbId)})}));
     stow(EXAMSK,exams);syncCloud({exams});closeModal();renderAll();
   }},['この教材を削除']);
   modal.append(delBtn);
+  openModal(modal);
+}
+
+// 科目編集モーダル（名前・カラー変更・削除）
+function showEditSubjectModal(examId,subjId){
+  const exam=exams.find(e=>e.id===examId);
+  const subj=exam?.subjects.find(s=>s.id===subjId);
+  if(!exam||!subj)return;
+  const modal=makeModal('科目編集');
+  const nameIn=el('input',{class:'input',style:{width:'100%'},placeholder:'科目名'});
+  nameIn.value=subj.name;
+  const colorSel=el('div',{class:'palette'});
+  let selColor=subj.color||PALETTE[0];
+  PALETTE.forEach(c=>{
+    const d=el('div',{class:'pal-dot'+(c===selColor?' selected':''),style:{background:c},onclick:()=>{
+      selColor=c;
+      colorSel.querySelectorAll('.pal-dot').forEach(x=>x.classList.remove('selected'));
+      d.classList.add('selected');
+    }});
+    colorSel.appendChild(d);
+  });
+  const saveBtn=el('button',{class:'btn primary full',onclick:()=>{
+    const newName=nameIn.value.trim()||subj.name;
+    updateExamHeader(examId,ex=>({...ex,subjects:ex.subjects.map(s=>s.id!==subjId?s:{...s,name:newName,color:selColor})}));
+    stow(EXAMSK,exams);syncCloud({exams});closeModal();renderAll();
+  }},['保存']);
+  const delBtn=el('button',{class:'btn ghost full',style:{marginTop:'8px',color:'var(--danger)',borderColor:'var(--danger)',fontSize:'12px'},onclick:()=>{
+    if(!confirm(`「${subj.name}」を削除しますか？教材・記録も全て削除されます`))return;
+    updateExamHeader(examId,ex=>({...ex,subjects:ex.subjects.filter(s=>s.id!==subjId)}));
+    stow(EXAMSK,exams);syncCloud({exams});closeModal();renderAll();
+  }},['この科目を削除']);
+  modal.append(
+    el('div',{class:'field'},[el('label',{},'科目名'),nameIn]),
+    el('div',{class:'field'},[el('label',{},'カラー'),colorSel]),
+    saveBtn,delBtn
+  );
   openModal(modal);
 }
 
@@ -1292,7 +1377,10 @@ function renderTextbookTab(){
       subjLeft.appendChild(el('span',{style:{width:'10px',height:'10px',borderRadius:'50%',background:subj.color,display:'inline-block',flexShrink:'0'}}));
       subjLeft.appendChild(el('span',{style:{fontWeight:'700',fontSize:'13px',color:subStyle2.text}},[subj.name]));
       subjHead.appendChild(subjLeft);
-      subjHead.appendChild(el('button',{class:'btn ghost sm',onclick:(e)=>{e.stopPropagation();showAddTextbookModal(exam.id,subj.id);}},['＋教材']));
+      const subjHeadBtns=el('div',{style:{display:'flex',gap:'6px'}});
+      subjHeadBtns.appendChild(el('button',{class:'btn ghost sm',style:{fontSize:'11px',padding:'3px 8px'},onclick:(e)=>{e.stopPropagation();showEditSubjectModal(exam.id,subj.id);}},['編集']));
+      subjHeadBtns.appendChild(el('button',{class:'btn ghost sm',onclick:(e)=>{e.stopPropagation();showAddTextbookModal(exam.id,subj.id);}},['＋教材']));
+      subjHead.appendChild(subjHeadBtns);
       subjDiv.appendChild(subjHead);
 
       // ── 教材ドラッグコンテナ ──
