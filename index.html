@@ -1319,7 +1319,7 @@ function makeDraggable(container, getItems, onReorder){
     row.addEventListener('drop',e=>{
       e.preventDefault();
       if(!dragSrc||dragSrc===row)return;
-      const items=[...container.querySelectorAll('[data-drag-id]')];
+      const items=[...container.children].filter(c=>c.hasAttribute('data-drag-id'));
       const fromIdx=items.indexOf(dragSrc);
       const toIdx=items.indexOf(row);
       if(fromIdx<0||toIdx<0||fromIdx===toIdx)return;
@@ -1348,8 +1348,10 @@ function makeDraggable(container, getItems, onReorder){
       const el2=document.elementFromPoint(touch.clientX,touch.clientY);
       touchGhost.style.display='';
       const target=el2?.closest('[data-drag-id]');
+      // 直接の子のみ対象（ネストした[data-drag-id]は除外）
+      const directTarget=(target&&target.parentElement===container)?target:null;
       container.querySelectorAll('.drag-over').forEach(el=>el.classList.remove('drag-over'));
-      if(target&&target!==touchItem){target.classList.add('drag-over');dragOver=target;}
+      if(directTarget&&directTarget!==touchItem){directTarget.classList.add('drag-over');dragOver=directTarget;}
     },{passive:false});
     row.addEventListener('touchend',()=>{
       if(!touchItem)return;
@@ -1357,7 +1359,7 @@ function makeDraggable(container, getItems, onReorder){
       touchItem.style.opacity='';
       container.querySelectorAll('.drag-over').forEach(el=>el.classList.remove('drag-over'));
       if(dragOver&&dragOver!==touchItem){
-        const items=[...container.querySelectorAll('[data-drag-id]')];
+        const items=[...container.children].filter(c=>c.hasAttribute('data-drag-id'));
         const fromIdx=items.indexOf(touchItem);
         const toIdx=items.indexOf(dragOver);
         if(fromIdx>=0&&toIdx>=0&&fromIdx!==toIdx)onReorder(fromIdx,toIdx);
@@ -1366,8 +1368,8 @@ function makeDraggable(container, getItems, onReorder){
     });
   }
 
-  // 全行にアタッチ
-  container.querySelectorAll('[data-drag-id]').forEach(attachDrag);
+  // 直接の子のみにアタッチ（孫要素の[data-drag-id]は除外）
+  [...container.children].filter(c=>c.hasAttribute('data-drag-id')).forEach(attachDrag);
 }
 
 function renderTextbookTab(){
