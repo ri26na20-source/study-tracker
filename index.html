@@ -716,7 +716,13 @@ async function initApp(user){
   const cd=await cloudLoad();
   if(cd){
     if(cd.mistakes?.length>=mistakes.length){mistakes=cd.mistakes;stow(SK,mistakes);}
-    if(cd.exams?.length>0){exams=cd.exams;stow(EXAMSK,exams);}
+    if(cd.exams?.length>0){
+      // nullが混入していた場合に除去
+      exams=cd.exams.map(ex=>ex?{...ex,
+        subjects:(ex.subjects||[]).filter(s=>s).map(s=>({...s,textbooks:(s.textbooks||[]).filter(t=>t)}))
+      }:null).filter(ex=>ex);
+      stow(EXAMSK,exams);
+    }
     if(cd.themeColor)applyTheme(cd.themeColor);
     if(cd.reviewInterval){reviewInterval=cd.reviewInterval;stow(RIVK,reviewInterval);}
     renderAll();
@@ -1387,7 +1393,7 @@ function renderTextbookTab(){
 
     // ── 科目ドラッグコンテナ ──
     const subjContainer=el('div',{class:'drag-container'});
-    const visibleSubjs=(exam.subjects||[]).filter(s=>showArchived||!s.archived);
+    const visibleSubjs=(exam.subjects||[]).filter(s=>s&&(showArchived||!s.archived));
     visibleSubjs.forEach((subj,si)=>{
       const subStyle2=subStyle(subj.color);
       const subjDiv=el('div',{'data-drag-id':subj.id,style:{background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:'10px',padding:'10px 12px',marginBottom:'8px',cursor:'grab',userSelect:'none',transition:'opacity .15s,box-shadow .15s'}});
@@ -1407,7 +1413,7 @@ function renderTextbookTab(){
 
       // ── 教材ドラッグコンテナ ──
       const tbContainer=el('div',{class:'drag-container'});
-      const visibleTbs=(subj.textbooks||[]).filter(t=>showArchived||!t.archived);
+      const visibleTbs=(subj.textbooks||[]).filter(t=>t&&(showArchived||!t.archived));
       visibleTbs.forEach((tb,ti)=>{
         const row=el('div',{'data-drag-id':tb.id,style:{display:'flex',alignItems:'center',gap:'8px',padding:'7px 4px',borderTop:'1px solid var(--border)',cursor:'grab',userSelect:'none',borderRadius:'6px',transition:'background .1s'}});
         row.appendChild(el('span',{style:{color:'var(--fg3)',fontSize:'12px',flexShrink:'0',lineHeight:'1',letterSpacing:'-1px'}},['|||']));
