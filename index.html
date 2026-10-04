@@ -563,12 +563,12 @@ let sbTimer=null;
 const today=todayWithReset();
 
 // helpers to flatten exams for study/mistake selects
-function allSubjects(){const r=[];exams.forEach(ex=>ex.subjects.forEach(s=>r.push({...s,examId:ex.id,examName:ex.name})));return r;}
-function allTextbooks(){const r=[];exams.forEach(ex=>ex.subjects.forEach(s=>s.textbooks.forEach(tb=>r.push({...tb,subjectId:s.id,subjectName:s.name,subjectColor:s.color,examId:ex.id,examName:ex.name}))));return r;}
-function activeTextbooks(){return allTextbooks().filter(tb=>!tb.archived);}
+function allSubjects(){const r=[];exams.forEach(ex=>(ex.subjects||[]).forEach(s=>{if(s)r.push({...s,examId:ex.id,examName:ex.name})}));return r;}
+function allTextbooks(){const r=[];exams.forEach(ex=>(ex.subjects||[]).forEach(s=>{if(s)(s.textbooks||[]).forEach(tb=>{if(tb)r.push({...tb,subjectId:s.id,subjectName:s.name,subjectColor:s.color,examId:ex.id,examName:ex.name})})}));return r;}
+function activeTextbooks(){return allTextbooks().filter(tb=>tb&&!tb.archived);}
 function findSubject(subName){return allSubjects().find(s=>s.name===subName);}
 function findTextbook(subName,tbName){return allTextbooks().find(t=>t.subjectName===subName&&t.name===tbName);}
-function updateTextbook(subjectId,tbId,updater){exams=exams.map(ex=>({...ex,subjects:ex.subjects.map(s=>s.id!==subjectId?s:{...s,textbooks:s.textbooks.map(tb=>tb.id!==tbId?tb:updater(tb))})}));}
+function updateTextbook(subjectId,tbId,updater){exams=exams.map(ex=>({...ex,subjects:(ex.subjects||[]).filter(s=>s).map(s=>s.id!==subjectId?s:{...s,textbooks:(s.textbooks||[]).filter(t=>t).map(tb=>tb.id!==tbId?tb:updater(tb))})}));}
 function updateExamHeader(examId,updater){exams=exams.map(ex=>ex.id!==examId?ex:updater(ex));}
 
 // ============================================================
@@ -717,11 +717,12 @@ async function initApp(user){
   if(cd){
     if(cd.mistakes?.length>=mistakes.length){mistakes=cd.mistakes;stow(SK,mistakes);}
     if(cd.exams?.length>0){
-      // nullが混入していた場合に除去
+      // nullが混入していた場合に除去してクラウドも上書き
       exams=cd.exams.map(ex=>ex?{...ex,
         subjects:(ex.subjects||[]).filter(s=>s).map(s=>({...s,textbooks:(s.textbooks||[]).filter(t=>t)}))
       }:null).filter(ex=>ex);
       stow(EXAMSK,exams);
+      syncNow({exams}); // 汚染データをクラウドからも除去
     }
     if(cd.themeColor)applyTheme(cd.themeColor);
     if(cd.reviewInterval){reviewInterval=cd.reviewInterval;stow(RIVK,reviewInterval);}
