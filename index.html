@@ -1357,23 +1357,33 @@ function makeDraggable(container, getItems, onReorder){
   let dragSrc=null,dragOver=null,touchItem=null,touchGhost=null,touchOffX=0,touchOffY=0;
 
   function attachDrag(row){
-    row.setAttribute('draggable','true');
+    const handle=row.querySelector('.drag-handle');
+
+    // PC: ハンドルのmousedownでdraggableを有効化
+    if(handle){
+      handle.style.cursor='grab';
+      handle.addEventListener('mousedown',()=>{ row.setAttribute('draggable','true'); });
+    } else {
+      row.setAttribute('draggable','true');
+    }
 
     row.addEventListener('dragstart',e=>{
-      dragSrc=row;row.style.opacity='.4';
+      if(handle && !e.target.closest('.drag-handle')){ e.preventDefault(); row.removeAttribute('draggable'); return; }
+      dragSrc=row; row.style.opacity='.4';
       e.dataTransfer.effectAllowed='move';
     });
     row.addEventListener('dragend',()=>{
       row.style.opacity='';
+      row.removeAttribute('draggable');
       container.querySelectorAll('.drag-over').forEach(el=>el.classList.remove('drag-over'));
-      dragSrc=null;dragOver=null;
+      dragSrc=null; dragOver=null;
     });
     row.addEventListener('dragenter',e=>{
       if(row===dragSrc)return;
       container.querySelectorAll('.drag-over').forEach(el=>el.classList.remove('drag-over'));
-      row.classList.add('drag-over');dragOver=row;
+      row.classList.add('drag-over'); dragOver=row;
     });
-    row.addEventListener('dragover',e=>{e.preventDefault();e.dataTransfer.dropEffect='move';});
+    row.addEventListener('dragover',e=>{ e.preventDefault(); e.dataTransfer.dropEffect='move'; });
     row.addEventListener('drop',e=>{
       e.preventDefault();
       if(!dragSrc||dragSrc===row)return;
@@ -1384,36 +1394,36 @@ function makeDraggable(container, getItems, onReorder){
       onReorder(fromIdx,toIdx);
     });
 
-    // タッチ
-    row.addEventListener('touchstart',e=>{
+    // タッチ: ハンドル上のtouchstartのみ開始
+    const touchTarget = handle || row;
+    touchTarget.addEventListener('touchstart',e=>{
       const touch=e.touches[0];
       touchItem=row;
       const rect=row.getBoundingClientRect();
-      touchOffX=touch.clientX-rect.left;touchOffY=touch.clientY-rect.top;
+      touchOffX=touch.clientX-rect.left; touchOffY=touch.clientY-rect.top;
       touchGhost=row.cloneNode(true);
       touchGhost.style.cssText=`position:fixed;left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;opacity:.7;pointer-events:none;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,.4);border-radius:10px;background:var(--bg2)`;
       document.body.appendChild(touchGhost);
       row.style.opacity='.3';
     },{passive:true});
+
     row.addEventListener('touchmove',e=>{
       if(!touchItem||!touchGhost)return;
       e.preventDefault();
       const touch=e.touches[0];
       touchGhost.style.left=(touch.clientX-touchOffX)+'px';
       touchGhost.style.top=(touch.clientY-touchOffY)+'px';
-      // どの行の上にいるか
       touchGhost.style.display='none';
       const el2=document.elementFromPoint(touch.clientX,touch.clientY);
       touchGhost.style.display='';
       const target=el2?.closest('[data-drag-id]');
-      // 直接の子のみ対象（ネストした[data-drag-id]は除外）
       const directTarget=(target&&target.parentElement===container)?target:null;
       container.querySelectorAll('.drag-over').forEach(el=>el.classList.remove('drag-over'));
-      if(directTarget&&directTarget!==touchItem){directTarget.classList.add('drag-over');dragOver=directTarget;}
+      if(directTarget&&directTarget!==touchItem){ directTarget.classList.add('drag-over'); dragOver=directTarget; }
     },{passive:false});
     row.addEventListener('touchend',()=>{
       if(!touchItem)return;
-      if(touchGhost){document.body.removeChild(touchGhost);touchGhost=null;}
+      if(touchGhost){ document.body.removeChild(touchGhost); touchGhost=null; }
       touchItem.style.opacity='';
       container.querySelectorAll('.drag-over').forEach(el=>el.classList.remove('drag-over'));
       if(dragOver&&dragOver!==touchItem){
@@ -1422,7 +1432,7 @@ function makeDraggable(container, getItems, onReorder){
         const toIdx=items.indexOf(dragOver);
         if(fromIdx>=0&&toIdx>=0&&fromIdx!==toIdx)onReorder(fromIdx,toIdx);
       }
-      touchItem=null;dragOver=null;
+      touchItem=null; dragOver=null;
     });
   }
 
@@ -1448,12 +1458,12 @@ function renderTextbookTab(){
     const visibleSubjs=(exam.subjects||[]).filter(s=>s&&(showArchived||!s.archived));
     visibleSubjs.forEach((subj,si)=>{
       const subStyle2=subStyle(subj.color);
-      const subjDiv=el('div',{'data-drag-id':subj.id,style:{background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:'10px',padding:'10px 12px',marginBottom:'8px',cursor:'grab',userSelect:'none',transition:'opacity .15s,box-shadow .15s'}});
+      const subjDiv=el('div',{'data-drag-id':subj.id,style:{background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:'10px',padding:'10px 12px',marginBottom:'8px',userSelect:'none',transition:'opacity .15s,box-shadow .15s'}});
 
       const subjHead=el('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'6px'}});
       const subjLeft=el('div',{style:{display:'flex',alignItems:'center',gap:'8px'}});
       // ドラッグハンドル
-      subjLeft.appendChild(el('span',{style:{color:'var(--fg3)',fontSize:'12px',cursor:'grab',marginRight:'2px',flexShrink:'0',lineHeight:'1',letterSpacing:'-1px'}},['|||']));
+      subjLeft.appendChild(el('span',{class:'drag-handle',style:{color:'var(--fg3)',fontSize:'12px',cursor:'grab',marginRight:'2px',flexShrink:'0',lineHeight:'1',letterSpacing:'-1px',padding:'4px 6px',margin:'-4px -2px',touchAction:'none'}},['|||']));
       subjLeft.appendChild(el('span',{style:{width:'10px',height:'10px',borderRadius:'50%',background:subj.color,display:'inline-block',flexShrink:'0'}}));
       subjLeft.appendChild(el('span',{style:{fontWeight:'700',fontSize:'13px',color:subStyle2.text}},[subj.name]));
       subjHead.appendChild(subjLeft);
@@ -1467,8 +1477,8 @@ function renderTextbookTab(){
       const tbContainer=el('div',{class:'drag-container'});
       const visibleTbs=(subj.textbooks||[]).filter(t=>t&&(showArchived||!t.archived));
       visibleTbs.forEach((tb,ti)=>{
-        const row=el('div',{'data-drag-id':tb.id,style:{display:'flex',alignItems:'center',gap:'8px',padding:'7px 4px',borderTop:'1px solid var(--border)',cursor:'grab',userSelect:'none',borderRadius:'6px',transition:'background .1s'}});
-        row.appendChild(el('span',{style:{color:'var(--fg3)',fontSize:'12px',flexShrink:'0',lineHeight:'1',letterSpacing:'-1px'}},['|||']));
+        const row=el('div',{'data-drag-id':tb.id,style:{display:'flex',alignItems:'center',gap:'8px',padding:'7px 4px',borderTop:'1px solid var(--border)',userSelect:'none',borderRadius:'6px',transition:'background .1s'}});
+        row.appendChild(el('span',{class:'drag-handle',style:{color:'var(--fg3)',fontSize:'12px',flexShrink:'0',lineHeight:'1',letterSpacing:'-1px',padding:'4px 6px',margin:'-4px -2px',touchAction:'none'}},['|||']));
         row.appendChild(el('span',{style:{flex:'1',fontSize:'13px',color:'var(--fg)'}},[tb.name]));
         if(tb.total>0)row.appendChild(el('span',{style:{fontSize:'11px',color:'var(--fg3)'}},[`${tb.done||0}/${tb.total}`]));
         row.appendChild(el('button',{class:'btn ghost sm',style:{fontSize:'11px',padding:'3px 8px'},onclick:(e)=>{e.stopPropagation();showEditTextbookGoalModal(exam.id,subj.id,tb.id);}},['設定']));
