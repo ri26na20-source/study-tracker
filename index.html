@@ -271,7 +271,7 @@ select option{background:var(--bg2);color:var(--fg)}
   <div id="auth-box">
     <div class="icon">📚</div>
     <h1>学習進捗管理ツール</h1>
-    <p class="sub">ログインしてデータを保存・端末間同期</p>
+    <p class="sub">ログインして端末間同期（任意）</p>
     <div id="auth-loading">読み込み中...</div>
     <div id="auth-form" hidden>
       <div class="auth-tabs">
@@ -286,6 +286,9 @@ select option{background:var(--bg2);color:var(--fg)}
         <button class="btn primary full" id="auth-submit-btn">ログイン</button>
         <div id="auth-reset-wrap" style="text-align:center;margin-top:12px">
           <button style="font-size:12px;color:var(--fg3);background:none;border:none;cursor:pointer" id="auth-forgot-btn">パスワードを忘れた場合</button>
+        </div>
+        <div style="text-align:center;margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
+          <button style="font-size:13px;color:var(--fg2);background:none;border:none;cursor:pointer" id="auth-skip-btn">ログインせずに使う →</button>
         </div>
       </div>
       <!-- 新パスワード設定画面（リセットリンクから戻ってきたとき） -->
@@ -494,6 +497,7 @@ select option{background:var(--bg2);color:var(--fg)}
   <button class="dd-item" id="dd-settings">⚙️ 設定</button>
   <button class="dd-item" id="dd-export">📤 エクスポート</button>
   <button class="dd-item" id="dd-import">📥 インポート</button>
+  <button class="dd-item" id="dd-login">☁️ ログイン（端末間同期）</button>
   <button class="dd-item" id="dd-logout" style="color:var(--danger)">🚪 ログアウト</button>
 </div>
 
@@ -641,6 +645,12 @@ $('auth-pass2') && $('auth-pass2').addEventListener('keydown',e=>{if(e.key==='En
 $('auth-forgot-btn').onclick=()=>showAuthResetView();
 $('reset-back-btn').onclick=()=>showAuthMainView();
 
+$('auth-skip-btn').onclick=()=>{
+  $('auth-screen').hidden=true;
+  $('app').hidden=false;
+  if(!currentUser)initApp(null);
+};
+
 $('reset-send-btn').onclick=async()=>{
   const email=$('reset-email').value.trim();
   const msgEl=$('reset-msg');msgEl.textContent='';
@@ -711,22 +721,35 @@ async function initApp(user){
   // 後方互換：既存データにフィールドがない場合
   daily.bookOk=daily.bookOk||{};daily.bookTri=daily.bookTri||{};daily.bookNg=daily.bookNg||{};
   applyTheme(themeColor);
+  // ログイン状態をメニューに反映
+  updateAuthMenuItems();
   renderAll();
-  // merge cloud
-  const cd=await cloudLoad();
-  if(cd){
-    if(cd.mistakes?.length>=mistakes.length){mistakes=cd.mistakes;stow(SK,mistakes);}
-    if(cd.exams?.length>0){
-      // nullが混入していた場合に除去してクラウドも上書き
-      exams=cd.exams.map(ex=>ex?{...ex,
-        subjects:(ex.subjects||[]).filter(s=>s).map(s=>({...s,textbooks:(s.textbooks||[]).filter(t=>t)}))
-      }:null).filter(ex=>ex);
-      stow(EXAMSK,exams);
-      syncNow({exams}); // 汚染データをクラウドからも除去
+  // ログインしている場合のみクラウド同期
+  if(user){
+    const cd=await cloudLoad();
+    if(cd){
+      if(cd.mistakes?.length>=mistakes.length){mistakes=cd.mistakes;stow(SK,mistakes);}
+      if(cd.exams?.length>0){
+        // nullが混入していた場合に除去してクラウドも上書き
+        exams=cd.exams.map(ex=>ex?{...ex,
+          subjects:(ex.subjects||[]).filter(s=>s).map(s=>({...s,textbooks:(s.textbooks||[]).filter(t=>t)}))
+        }:null).filter(ex=>ex);
+        stow(EXAMSK,exams);
+        syncNow({exams}); // 汚染データをクラウドからも除去
+      }
+      if(cd.themeColor)applyTheme(cd.themeColor);
+      if(cd.reviewInterval){reviewInterval=cd.reviewInterval;stow(RIVK,reviewInterval);}
+      renderAll();
     }
-    if(cd.themeColor)applyTheme(cd.themeColor);
-    if(cd.reviewInterval){reviewInterval=cd.reviewInterval;stow(RIVK,reviewInterval);}
-    renderAll();
+  }
+}
+
+function updateAuthMenuItems(){
+  const loginItem=$('dd-login');
+  const logoutItem=$('dd-logout');
+  if(loginItem&&logoutItem){
+    loginItem.hidden=!!currentUser;
+    logoutItem.hidden=!currentUser;
   }
 }
 
@@ -749,10 +772,11 @@ sb.auth.onAuthStateChange(async(event,session)=>{
     $('auth-form').hidden=true;
     await initApp(session.user);
   }else{
+    // ログインなしでもアプリを使えるようにする
     currentUser=null;
-    $('app').hidden=true;
-    $('auth-screen').hidden=false;
-    $('auth-form').hidden=false;
+    $('auth-screen').hidden=true;
+    $('app').hidden=false;
+    await initApp(null);
   }
 });
 
@@ -783,11 +807,24 @@ $('newpass-submit-btn').onclick=async()=>{
 };
 
 // ============================================================
+// LOGIN (from menu)
+// ============================================================
+$('dd-login').onclick=()=>{
+  $('dropdown').hidden=true;
+  $('app').hidden=true;
+  $('auth-screen').hidden=false;
+  $('auth-loading').hidden=true;
+  $('auth-form').hidden=false;
+};
+
+// ============================================================
 // LOGOUT
 // ============================================================
 $('dd-logout').onclick=async()=>{
   $('dropdown').hidden=true;
   await sb.auth.signOut();
+  currentUser=null;
+  updateAuthMenuItems();
 };
 
 // ============================================================
