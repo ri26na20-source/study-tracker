@@ -1,6 +1,14 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>学習進捗管理ツール</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 <style>
 :root {
   --bg: #16162a;
@@ -505,11 +513,21 @@ select option{background:var(--bg2);color:var(--fg)}
 
 <script>
 // ============================================================
-// SUPABASE CLIENT
+// FIREBASE CLIENT
 // ============================================================
-const SURL='https://hpmnoxrldihiobsnjvhe.supabase.co';
-const SKEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhwbW5veHJsZGloaW9ic25qdmhlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA3NjY5NDgsImV4cCI6MjEwNjM0Mjk0OH0._EWMpZ7TXXbyf46TkASLvxIzHhU_FUljn7b9LVHyEu4';
-const sb=supabase.createClient(SURL,SKEY);
+const firebaseConfig = {
+  apiKey: "AIzaSyALfj3268AdYHo3D3PPigDpzT2rmjOpuig",
+  authDomain: "study-tracker-7f89e.firebaseapp.com",
+  projectId: "study-tracker-7f89e",
+  storageBucket: "study-tracker-7f89e.firebasestorage.app",
+  messagingSenderId: "595459332127",
+  appId: "1:595459332127:web:3fbaafe1b325724a18dd2a"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+// Firestoreはオフラインキャッシュを有効化（アプリを素早く表示）
+db.enablePersistence().catch(()=>{});
 
 // ============================================================
 // CONSTANTS & UTILS
@@ -563,7 +581,6 @@ let mistakes=[],exams=[],daily={date:'',subCount:{},reviewGoal:0,reviewCount:0},
 let showArchived=false,showGrad=false,showStarOnly=false,lastAns=null,lastRem=null;
 let currentTab='progress';
 let currentUser=null;
-let sbTimer=null;
 const today=todayWithReset();
 
 // helpers to flatten exams for study/mistake selects
@@ -622,20 +639,19 @@ $('auth-submit-btn').onclick=async()=>{
     if(pass!==pass2){errEl.textContent='パスワードが一致しません';return;}
   }
   $('auth-submit-btn').textContent='処理中...';$('auth-submit-btn').disabled=true;
-  if(authMode==='login'){
-    const{error}=await sb.auth.signInWithPassword({email,password:pass});
-    if(error){errEl.textContent=error.message==='Invalid login credentials'?'メールアドレスまたはパスワードが正しくありません':error.message;}
-  }else{
-    const{data,error}=await sb.auth.signUp({
-      email,password:pass,
-      options:{emailRedirectTo:location.origin,data:{app:'study-tracker'},
-        // Supabaseの確認メールテンプレートはダッシュボードで設定
-      }
-    });
-    if(error){errEl.textContent=error.message;}
-    else{errEl.style.color='var(--ok)';errEl.textContent='確認メールを送信しました。メール内のリンクをクリックしてログインしてください。';}
+  try{
+    if(authMode==='login'){
+      await auth.signInWithEmailAndPassword(email,pass);
+      // onAuthStateChange が initApp を呼ぶ
+    }else{
+      await auth.createUserWithEmailAndPassword(email,pass);
+      // 登録後は自動ログインされ onAuthStateChange が呼ばれる
+    }
+  }catch(e){
+    const msgs={'auth/user-not-found':'メールアドレスまたはパスワードが正しくありません','auth/wrong-password':'メールアドレスまたはパスワードが正しくありません','auth/email-already-in-use':'このメールアドレスは既に使われています','auth/invalid-email':'メールアドレスの形式が正しくありません','auth/weak-password':'パスワードは6文字以上にしてください'};
+    errEl.textContent=msgs[e.code]||e.message;
+    $('auth-submit-btn').textContent=authMode==='login'?'ログイン':'新規登録';$('auth-submit-btn').disabled=false;
   }
-  $('auth-submit-btn').textContent=authMode==='login'?'ログイン':'新規登録';$('auth-submit-btn').disabled=false;
 };
 
 $('auth-email').addEventListener('keydown',e=>{if(e.key==='Enter')$('auth-pass').focus();});
@@ -656,26 +672,34 @@ $('reset-send-btn').onclick=async()=>{
   const msgEl=$('reset-msg');msgEl.textContent='';
   if(!email){msgEl.style.color='var(--warn)';msgEl.textContent='メールアドレスを入力してください';return;}
   $('reset-send-btn').textContent='送信中...';$('reset-send-btn').disabled=true;
-  const{error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.origin+'?reset=1'});
+  try{
+    await auth.sendPasswordResetEmail(email);
+    msgEl.style.color='var(--ok)';msgEl.textContent='✅ リセットメールを送信しました。メール内のリンクからパスワードを変更してください。';
+  }catch(e){
+    msgEl.style.color='var(--danger)';msgEl.textContent='エラー: '+e.message;
+  }
   $('reset-send-btn').textContent='リセットメールを送信';$('reset-send-btn').disabled=false;
-  if(error){msgEl.style.color='var(--danger)';msgEl.textContent='エラー: '+error.message;}
-  else{msgEl.style.color='var(--ok)';msgEl.textContent='✅ リセットメールを送信しました。メール内のリンクからパスワードを変更してください。';}
 };
 
 // ============================================================
-// CLOUD SYNC (Auth-based)
+// CLOUD SYNC (Firestore)
 // ============================================================
 async function cloudLoad(){
   if(!currentUser)return null;
-  const{data,error}=await sb.from('study_data').select('data').eq('user_id',currentUser.id).single();
-  if(error&&error.code!=='PGRST116')return null;
-  return data?data.data:null;
+  try{
+    const doc=await db.collection('study_data').doc(currentUser.uid).get();
+    if(doc.exists)return doc.data();
+  }catch(e){console.error('cloudLoad error',e);}
+  return null;
 }
 async function cloudSave(payload){
   if(!currentUser)return;
-  await sb.from('study_data').upsert({user_id:currentUser.id,data:payload,updated_at:new Date().toISOString()},{onConflict:'user_id'});
+  try{
+    await db.collection('study_data').doc(currentUser.uid).set({...payload,updated_at:new Date().toISOString()});
+  }catch(e){console.error('cloudSave error',e);}
 }
 function getPayload(){return{mistakes,exams,themeColor,reviewInterval};}
+let sbTimer=null;
 function syncCloud(partial){clearTimeout(sbTimer);sbTimer=setTimeout(()=>cloudSave({...getPayload(),...partial}),2000);}
 function syncNow(partial){cloudSave({...getPayload(),...partial});}
 
@@ -756,21 +780,11 @@ function updateAuthMenuItems(){
 // ============================================================
 // AUTH STATE LISTENER (boot)
 // ============================================================
-sb.auth.onAuthStateChange(async(event,session)=>{
+auth.onAuthStateChanged(async(user)=>{
   $('auth-loading').hidden=true;
-  if(event==='PASSWORD_RECOVERY'){
-    // パスワードリセットリンクから戻ってきた → 新パスワード設定画面を表示
-    $('app').hidden=true;
-    $('auth-screen').hidden=false;
-    $('auth-form').hidden=false;
-    $('auth-main-view').hidden=true;
-    $('auth-reset-view').hidden=true;
-    $('auth-newpass-view').hidden=false;
-    return;
-  }
-  if(session?.user){
+  if(user){
     $('auth-form').hidden=true;
-    await initApp(session.user);
+    await initApp(user);
   }else{
     // ログインなしでもアプリを使えるようにする
     currentUser=null;
@@ -780,7 +794,7 @@ sb.auth.onAuthStateChange(async(event,session)=>{
   }
 });
 
-// 新パスワード設定ボタン
+// 新パスワード設定ボタン（Firebase: リセットリンクからログイン後に更新）
 $('newpass-submit-btn').onclick=async()=>{
   const p=$('newpass-input').value;
   const p2=$('newpass-input2').value;
@@ -790,20 +804,20 @@ $('newpass-submit-btn').onclick=async()=>{
   if(p!==p2){msg.textContent='パスワードが一致しません';return;}
   $('newpass-submit-btn').disabled=true;
   $('newpass-submit-btn').textContent='更新中...';
-  const{error}=await sb.auth.updateUser({password:p});
-  $('newpass-submit-btn').disabled=false;
-  $('newpass-submit-btn').textContent='パスワードを更新';
-  if(error){msg.textContent='エラー: '+error.message;}
-  else{
+  try{
+    const user=auth.currentUser;
+    if(user){await user.updatePassword(p);}
     msg.style.color='var(--ok)';
-    msg.textContent='パスワードを更新しました。ログインしてください。';
-    await sb.auth.signOut();
+    msg.textContent='パスワードを更新しました。';
+    await auth.signOut();
     setTimeout(()=>{
       $('auth-newpass-view').hidden=true;
       $('auth-main-view').hidden=false;
       msg.textContent='';msg.style.color='var(--danger)';
     },1500);
-  }
+  }catch(e){msg.textContent='エラー: '+e.message;}
+  $('newpass-submit-btn').disabled=false;
+  $('newpass-submit-btn').textContent='パスワードを更新';
 };
 
 // ============================================================
@@ -822,7 +836,7 @@ $('dd-login').onclick=()=>{
 // ============================================================
 $('dd-logout').onclick=async()=>{
   $('dropdown').hidden=true;
-  await sb.auth.signOut();
+  await auth.signOut();
   currentUser=null;
   updateAuthMenuItems();
 };
@@ -2413,3 +2427,4 @@ function renderAll(){
   if(currentTab==='textbook')renderTextbookTab();
 }
 </script>
+</body></html>
